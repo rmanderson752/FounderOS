@@ -1150,3 +1150,163 @@ html, body {
 [data-theme='light'] .grid.grid-cols-7 .text-2xl {
   color: #0F172A !important;
 }
+
+/* ============================================
+   LIGHT MODE - TASK ITEM FIX
+   ============================================
+   
+   Add this to your globals.css to fix the dark task bars in light mode.
+   The issue is that task items with .task-row.active or specific 
+   background classes are getting dark backgrounds in light mode.
+   
+   Replace or merge with your existing light mode section.
+*/
+
+/* Fix for active/selected task items in light mode */
+[data-theme='light'] .task-row.active,
+[data-theme='light'] .task-row.next,
+[data-theme='light'] div[class*="task-row"][class*="active"] {
+  background: rgba(99, 102, 241, 0.08) !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Fix for Today's Focus task items - the dark rounded bars */
+[data-theme='light'] .rounded-2xl.bg-white\/10,
+[data-theme='light'] [class*="rounded-2xl"][class*="bg-white"],
+[data-theme='light'] div.rounded-2xl[class*="bg-"] {
+  background: #F1F5F9 !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Specifically target the task row container that's showing dark */
+[data-theme='light'] .glass-card .rounded-2xl,
+[data-theme='light'] .glass-card-static .rounded-2xl,
+[data-theme='light'] div[class*="p-4"][class*="rounded-2xl"] {
+  background: #F1F5F9 !important;
+}
+
+/* Active task highlight in Today's Focus */
+[data-theme='light'] .rounded-2xl.ring-2,
+[data-theme='light'] [class*="ring-indigo"] {
+  background: rgba(99, 102, 241, 0.1) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Task text colors in light mode */
+[data-theme='light'] .task-row span,
+[data-theme='light'] .task-row p,
+[data-theme='light'] .rounded-2xl span,
+[data-theme='light'] .rounded-2xl p {
+  color: #334155 !important;
+}
+
+[data-theme='light'] .task-row .text-white,
+[data-theme='light'] .rounded-2xl .text-white {
+  color: #0F172A !important;
+}
+
+/* Play button in task items */
+[data-theme='light'] .task-row button[class*="rounded-full"],
+[data-theme='light'] .rounded-2xl button[class*="rounded-full"] {
+  background: #E2E8F0 !important;
+  color: #475569 !important;
+}
+
+[data-theme='light'] .task-row button[class*="rounded-full"]:hover,
+[data-theme='light'] .rounded-2xl button[class*="rounded-full"]:hover {
+  background: #CBD5E1 !important;
+  color: #1E293B !important;
+}
+
+/* Checkmark icons */
+[data-theme='light'] .task-row svg,
+[data-theme='light'] .rounded-2xl svg {
+  color: inherit;
+}
+
+/* Time display */
+[data-theme='light'] .task-row .text-gray-400,
+[data-theme='light'] .task-row .text-gray-500,
+[data-theme='light'] .rounded-2xl .text-gray-400,
+[data-theme='light'] .rounded-2xl .text-gray-500 {
+  color: #64748B !important;
+}
+
+/* ============================================
+   NUCLEAR OPTION - Target by inline styles
+   ============================================
+   If the above doesn't work, the component might be 
+   using inline styles. Here's a more aggressive fix:
+*/
+
+[data-theme='light'] [style*="background: rgba(255, 255, 255, 0.1)"],
+[data-theme='light'] [style*="background: rgba(255, 255, 255, 0.05)"],
+[data-theme='light'] [style*="background-color: rgba(255, 255, 255"] {
+  background: #F1F5F9 !important;
+}
+/* ============================================
+   SURGICAL FIX FOR DARK TASK BARS
+   ============================================
+   
+   Add this at the VERY END of your globals.css
+   
+   The issue is that task items inside "Today's Focus" 
+   have bg-white/10 which shows as dark in light mode.
+*/
+
+/* Target task items with the specific dark appearance */
+[data-theme='light'] div[class*="rounded-2xl"][class*="p-4"],
+[data-theme='light'] div[class*="rounded-xl"][class*="p-4"],
+[data-theme='light'] div[class*="rounded-2xl"][class*="p-3"],
+[data-theme='light'] div[class*="rounded-xl"][class*="p-3"] {
+  background: #F1F5F9 !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* BUT keep the active/highlighted task item styled properly */
+[data-theme='light'] div[class*="rounded-2xl"][class*="ring-2"],
+[data-theme='light'] div[class*="rounded-xl"][class*="ring-2"],
+[data-theme='light'] div[class*="rounded-2xl"][class*="ring-indigo"],
+[data-theme='light'] div[class*="rounded-xl"][class*="ring-indigo"] {
+  background: rgba(99, 102, 241, 0.08) !important;
+  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Target the specific bg-white/10 pattern used in task items */
+[data-theme='light'] [class*="bg-white"][class*="/10"],
+[data-theme='light'] [class*="bg-white"][class*="/5"] {
+  background: #F1F5F9 !important;
+}
+
+/* More specific: task item containers inside glass cards */
+[data-theme='light'] .glass-card > div > div[class*="rounded"],
+[data-theme='light'] .glass-card-static > div > div[class*="rounded"] {
+  background: #F1F5F9 !important;
+}
+
+/* The hover state for task items */
+[data-theme='light'] div[class*="rounded-2xl"]:hover,
+[data-theme='light'] div[class*="rounded-xl"]:hover {
+  background: #E2E8F0 !important;
+}
+
+/* Ensure text inside is readable */
+[data-theme='light'] div[class*="rounded-2xl"] span,
+[data-theme='light'] div[class*="rounded-2xl"] p,
+[data-theme='light'] div[class*="rounded-2xl"] h3 {
+  color: #1E293B !important;
+}
+
+/* Secondary text (time estimates) */
+[data-theme='light'] div[class*="rounded-2xl"] .text-sm {
+  color: #64748B !important;
+}
+
+/* Play button */
+[data-theme='light'] div[class*="rounded-2xl"] button[class*="rounded-full"] {
+  background: #E2E8F0 !important;
+}
+
+[data-theme='light'] div[class*="rounded-2xl"] button[class*="rounded-full"] svg {
+  color: #475569 !important;
+}
