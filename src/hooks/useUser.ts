@@ -8,6 +8,7 @@ export interface UserProfile {
   id: string
   email: string
   name: string | null
+  avatar_id: string | null
   daily_hours_available: number | null
   work_days: number[] | null
   onboarded: boolean | null
