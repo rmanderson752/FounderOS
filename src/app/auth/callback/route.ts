@@ -1,33 +1,30 @@
-// src/lib/supabase/server.ts
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
 
-export async function createClient() {
-  const cookieStore = await cookies()
+export async function GET(request: Request) {
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
+  const error_description = requestUrl.searchParams.get('error_description')
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
-            // Handle cookies in server components
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
-            // Handle cookies in server components
-          }
-        },
-      },
+  // If there's an error from the OAuth provider
+  if (error_description) {
+    console.error('OAuth error:', error_description)
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error_description)}`, requestUrl.origin))
+  }
+
+  if (code) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (error) {
+      console.error('Session exchange error:', error.message)
+      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, requestUrl.origin))
     }
-  )
+
+    // Success - redirect to dashboard
+    return NextResponse.redirect(new URL('/', requestUrl.origin))
+  }
+
+  // No code present
+  return NextResponse.redirect(new URL('/login?error=no_code', requestUrl.origin))
 }
