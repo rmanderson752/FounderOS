@@ -81,23 +81,8 @@ export default function LoginPage() {
     router.refresh()
   }
 
-  const handleGoogleLogin = async () => {
-    console.log('Google login clicked')
-    const supabase = createClient()
-    console.log('Supabase client created:', supabase)
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    
-    console.log('OAuth response:', { data, error })
-    
-    if (error) {
-      console.error('OAuth error:', error)
-    }
+  const handleGoogleLogin = () => {
+    window.location.href = 'https://botlicwjcsprmgjcvnus.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://founder-os-xi.vercel.app/auth/callback'
   }
 
   return (
