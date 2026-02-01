@@ -82,7 +82,7 @@ export default function LoginPage() {
   }
 
   const handleGoogleLogin = () => {
-    window.location.href = 'https://botlicwjcsprmgjcvnus.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://founder-os-xi.vercel.app/auth/callback'
+    alert('Button clicked!')
   }
 
   return (
