@@ -82,14 +82,22 @@ export default function LoginPage() {
   }
 
   const handleGoogleLogin = async () => {
+    console.log('Google login clicked')
     const supabase = createClient()
+    console.log('Supabase client created:', supabase)
     
-    await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     })
+    
+    console.log('OAuth response:', { data, error })
+    
+    if (error) {
+      console.error('OAuth error:', error)
+    }
   }
 
   return (
@@ -330,7 +338,6 @@ export default function LoginPage() {
               <motion.div 
                 className="p-3 rounded-lg bg-red-500/10 border border-red-500/20"
                 initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
               >
                 <p className="text-xs text-red-400">{error}</p>
               </motion.div>
