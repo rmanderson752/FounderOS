@@ -92,20 +92,20 @@ export default function ProgressPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Progress</h1>
-          <p className="text-gray-400 mt-1">Track your time and see how you're doing</p>
+          <h1 className="text-2xl font-bold text-ink">Progress</h1>
+          <p className="text-ink-3 mt-1">Track your time and see how you're doing</p>
         </div>
         
         {/* View Mode Toggle */}
         {activeGoalsCount > 1 && (
-          <div className="flex items-center gap-2 p-1 rounded-lg bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2 p-1 rounded-lg bg-ink/[0.04] border border-line">
             <button
               onClick={() => setViewMode('active')}
               className={cn(
                 'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
                 viewMode === 'active'
                   ? 'bg-indigo-500/20 text-indigo-400'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-ink-3 hover:text-ink'
               )}
             >
               <Target className="w-4 h-4" />
@@ -117,7 +117,7 @@ export default function ProgressPage() {
                 'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
                 viewMode === 'all'
                   ? 'bg-indigo-500/20 text-indigo-400'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-ink-3 hover:text-ink'
               )}
             >
               <Layers className="w-4 h-4" />
@@ -129,15 +129,15 @@ export default function ProgressPage() {
 
       {/* Current View Indicator */}
       {viewMode === 'active' && goal && (
-        <div className="flex items-center gap-2 text-sm text-gray-400">
+        <div className="flex items-center gap-2 text-sm text-ink-3">
           <Target className="w-4 h-4 text-indigo-400" />
-          <span>Showing progress for: <span className="text-white font-medium">{goal.title}</span></span>
+          <span>Showing progress for: <span className="text-ink font-medium">{goal.title}</span></span>
         </div>
       )}
       {viewMode === 'all' && (
-        <div className="flex items-center gap-2 text-sm text-gray-400">
+        <div className="flex items-center gap-2 text-sm text-ink-3">
           <Layers className="w-4 h-4 text-indigo-400" />
-          <span>Showing progress for: <span className="text-white font-medium">All {activeGoalsCount} goals</span></span>
+          <span>Showing progress for: <span className="text-ink font-medium">All {activeGoalsCount} goals</span></span>
         </div>
       )}
 
@@ -183,7 +183,7 @@ export default function ProgressPage() {
                   'px-3 py-1 text-xs rounded-lg transition-colors',
                   timeRange === range
                     ? 'bg-blue-500/10 text-blue-400'
-                    : 'text-gray-400 hover:text-white'
+                    : 'text-ink-3 hover:text-ink'
                 )}
               >
                 {range.charAt(0).toUpperCase() + range.slice(1)}
@@ -208,7 +208,7 @@ export default function ProgressPage() {
                 <div className="w-full flex gap-1 h-32 items-end justify-center">
                   {day.isWorkDay && (
                     <div
-                      className="w-3 bg-gray-700 rounded-t"
+                      className="w-3 bg-surface-3 rounded-t"
                       style={{ height: `${plannedHeight}%` }}
                     />
                   )}
@@ -216,14 +216,14 @@ export default function ProgressPage() {
                     className={cn(
                       'w-3 rounded-t transition-all',
                       day.actual >= day.planned && day.planned > 0 ? 'bg-green-500' : 'bg-blue-500',
-                      day.actual === 0 && 'bg-gray-700'
+                      day.actual === 0 && 'bg-surface-3'
                     )}
                     style={{ height: `${Math.max(actualHeight, day.actual > 0 ? 5 : 0)}%` }}
                   />
                 </div>
                 <span className={cn(
                   'text-xs',
-                  isDayToday ? 'text-white font-medium' : 'text-gray-500'
+                  isDayToday ? 'text-ink font-medium' : 'text-ink-4'
                 )}>
                   {format(day.date, 'EEE')}
                 </span>
@@ -233,9 +233,9 @@ export default function ProgressPage() {
         </div>
 
         {/* Legend */}
-        <div className="flex gap-4 mt-4 text-xs text-gray-400">
+        <div className="flex gap-4 mt-4 text-xs text-ink-3">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-gray-700 rounded" />
+            <div className="w-3 h-3 bg-surface-3 rounded" />
             <span>Planned</span>
           </div>
           <div className="flex items-center gap-2">
@@ -256,7 +256,7 @@ export default function ProgressPage() {
         </CardHeader>
 
         {recentlyCompleted.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-ink-4">
             <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p>No completed tasks yet</p>
             <p className="text-sm">Complete a task to see it here</p>
@@ -266,14 +266,14 @@ export default function ProgressPage() {
             {recentlyCompleted.map((task) => (
               <div
                 key={task.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-white/5"
+                className="flex items-center gap-3 p-3 rounded-lg bg-ink/[0.04]"
               >
                 <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
                   <CheckCircle className="w-4 h-4 text-emerald-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white truncate">{task.title}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm text-ink truncate">{task.title}</p>
+                  <p className="text-xs text-ink-4">
                     {task.completed_at && format(new Date(task.completed_at), 'MMM d')} • {task.actual_minutes || task.estimated_minutes} min
                   </p>
                 </div>
@@ -365,11 +365,11 @@ function StatCard({ icon: Icon, label, value, sublabel, highlight }: StatCardPro
         </div>
       </div>
       <div className="mt-3">
-        <div className={cn('text-2xl font-bold', highlight ? 'text-emerald-400' : 'text-white')}>
+        <div className={cn('text-2xl font-bold', highlight ? 'text-emerald-400' : 'text-ink')}>
           {value}
         </div>
-        <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-        <div className="text-xs text-gray-600">{sublabel}</div>
+        <div className="text-xs text-ink-4 mt-0.5">{label}</div>
+        <div className="text-xs text-ink-4">{sublabel}</div>
       </div>
     </Card>
   )
@@ -408,8 +408,8 @@ function InsightItem({ type, title, description }: InsightItemProps) {
       <div className="flex items-start gap-3">
         <Icon className={cn('w-5 h-5 mt-0.5', iconColors[type])} />
         <div>
-          <p className="font-medium text-white">{title}</p>
-          <p className="text-sm text-gray-400 mt-0.5">{description}</p>
+          <p className="font-medium text-ink">{title}</p>
+          <p className="text-sm text-ink-3 mt-0.5">{description}</p>
         </div>
       </div>
     </div>

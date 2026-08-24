@@ -26,12 +26,12 @@ export function GoalSwitcher() {
 
   return (
     <Menu as="div" className="relative">
-      <Menu.Button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">
+      <Menu.Button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-ink/[0.04] transition-colors">
         <Target className="w-4 h-4 text-indigo-400" />
-        <span className="text-sm font-medium text-white max-w-[200px] truncate">
+        <span className="text-sm font-medium text-ink max-w-[200px] truncate">
           {activeGoal?.title || 'No active goal'}
         </span>
-        <ChevronDown className="w-4 h-4 text-gray-400" />
+        <ChevronDown className="w-4 h-4 text-ink-3" />
       </Menu.Button>
 
       <Transition
@@ -47,7 +47,7 @@ export function GoalSwitcher() {
           {/* Active Goals */}
           {activeGoals.length > 0 && (
             <div className="mb-2">
-              <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <div className="px-2 py-1 text-xs font-medium text-ink-4 uppercase tracking-wide">
                 Active
               </div>
               {activeGoals.map(goal => (
@@ -56,13 +56,13 @@ export function GoalSwitcher() {
                     <button
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors',
-                        active ? 'bg-white/10' : ''
+                        active ? 'bg-ink/[0.06]' : ''
                       )}
                     >
                       <div className="w-2 h-2 rounded-full bg-emerald-400" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{goal.title}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-sm font-medium text-ink truncate">{goal.title}</p>
+                        <p className="text-xs text-ink-3">
                           Due {format(new Date(goal.deadline), 'MMM d')}
                         </p>
                       </div>
@@ -77,7 +77,7 @@ export function GoalSwitcher() {
           {/* Paused Goals */}
           {pausedGoals.length > 0 && (
             <div className="mb-2">
-              <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <div className="px-2 py-1 text-xs font-medium text-ink-4 uppercase tracking-wide">
                 Paused
               </div>
               {pausedGoals.map(goal => (
@@ -87,13 +87,13 @@ export function GoalSwitcher() {
                       onClick={() => handleSwitchGoal(goal.id)}
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors',
-                        active ? 'bg-white/10' : ''
+                        active ? 'bg-ink/[0.06]' : ''
                       )}
                     >
                       <Clock className="w-4 h-4 text-amber-400" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{goal.title}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-sm font-medium text-ink truncate">{goal.title}</p>
+                        <p className="text-xs text-ink-3">
                           Due {format(new Date(goal.deadline), 'MMM d')}
                         </p>
                       </div>
@@ -107,7 +107,7 @@ export function GoalSwitcher() {
           {/* Completed Goals */}
           {completedGoals.length > 0 && (
             <div className="mb-2">
-              <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <div className="px-2 py-1 text-xs font-medium text-ink-4 uppercase tracking-wide">
                 Completed
               </div>
               {completedGoals.slice(0, 3).map(goal => (
@@ -116,11 +116,11 @@ export function GoalSwitcher() {
                     <div
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left',
-                        active ? 'bg-white/5' : ''
+                        active ? 'bg-ink/[0.04]' : ''
                       )}
                     >
                       <Check className="w-4 h-4 text-emerald-400" />
-                      <p className="text-sm text-gray-400 truncate">{goal.title}</p>
+                      <p className="text-sm text-ink-3 truncate">{goal.title}</p>
                     </div>
                   )}
                 </Menu.Item>
@@ -129,7 +129,7 @@ export function GoalSwitcher() {
           )}
 
           {/* Divider */}
-          <div className="border-t border-white/10 my-2" />
+          <div className="border-t border-line my-2" />
 
           {/* Actions */}
           <Menu.Item>
@@ -138,11 +138,11 @@ export function GoalSwitcher() {
                 href="/goals"
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
-                  active ? 'bg-white/10' : ''
+                  active ? 'bg-ink/[0.06]' : ''
                 )}
               >
-                <Archive className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-300">Manage all goals</span>
+                <Archive className="w-4 h-4 text-ink-3" />
+                <span className="text-sm text-ink-2">Manage all goals</span>
               </Link>
             )}
           </Menu.Item>
@@ -153,7 +153,7 @@ export function GoalSwitcher() {
                 href="/goals/new"
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
-                  active ? 'bg-white/10' : ''
+                  active ? 'bg-ink/[0.06]' : ''
                 )}
               >
                 <Plus className="w-4 h-4 text-indigo-400" />

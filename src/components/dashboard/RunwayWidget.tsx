@@ -89,7 +89,7 @@ export function RunwayWidget() {
           <CardTitle>Runway</CardTitle>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-ink-3 hover:text-ink transition-colors"
           >
             <Pencil className="w-4 h-4" />
           </button>
@@ -102,7 +102,7 @@ export function RunwayWidget() {
               <span className={cn('text-4xl font-semibold', statusColors[calculation.status])}>
                 {calculation.months === Infinity ? '∞' : calculation.months.toFixed(1)}
               </span>
-              <span className="text-gray-400 text-lg">months</span>
+              <span className="text-ink-3 text-lg">months</span>
             </div>
             <ProgressBar
               value={Math.min(calculation.months, 12)}
@@ -115,17 +115,17 @@ export function RunwayWidget() {
           {/* Details */}
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Cash</p>
-              <p className="text-white font-medium">{formatCurrency(runway.cashBalance)}</p>
+              <p className="text-xs text-ink-4 uppercase tracking-wide mb-1">Cash</p>
+              <p className="text-ink font-medium">{formatCurrency(runway.cashBalance)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Monthly Burn</p>
-              <p className="text-white font-medium">{formatCurrency(runway.monthlyBurn)}/mo</p>
+              <p className="text-xs text-ink-4 uppercase tracking-wide mb-1">Monthly Burn</p>
+              <p className="text-ink font-medium">{formatCurrency(runway.monthlyBurn)}/mo</p>
             </div>
           </div>
 
           {/* Last updated */}
-          <p className="text-xs text-gray-500">{getDaysAgo(runway.lastUpdated)}</p>
+          <p className="text-xs text-ink-4">{getDaysAgo(runway.lastUpdated)}</p>
         </div>
       </Card>
 

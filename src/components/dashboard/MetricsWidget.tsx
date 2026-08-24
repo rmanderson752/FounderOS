@@ -60,7 +60,7 @@ export function MetricsWidget() {
           <CardTitle>Key Metrics</CardTitle>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-ink-3 hover:text-ink transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -109,12 +109,12 @@ function MetricCard({
     ? 'text-green-400'
     : trend.direction === 'down'
     ? 'text-red-400'
-    : 'text-gray-400'
+    : 'text-ink-3'
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-500 uppercase tracking-wide">{metric.name}</p>
-      <p className="text-xl font-semibold text-white">
+      <p className="text-xs text-ink-4 uppercase tracking-wide">{metric.name}</p>
+      <p className="text-xl font-semibold text-ink">
         {formatMetricValue(metric.current, metric.type)}
       </p>
       <div className={cn('flex items-center gap-1 text-xs', trendColor)}>

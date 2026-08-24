@@ -1,5 +1,5 @@
 // src/components/ui/Avatar.tsx
-// Sleek avatar component with emoji icons
+// Round emoji avatar on a soft pastel bubble
 
 import { cn } from '@/lib/utils'
 import { getAvatarById } from './AvatarSelector'
@@ -13,27 +13,35 @@ interface AvatarProps {
 
 export function Avatar({ size = 'md', avatarId, className, onClick }: AvatarProps) {
   const sizes = {
-    sm: 'w-8 h-8 text-sm',
-    md: 'w-10 h-10 text-lg',
+    sm: 'w-9 h-9 text-base',
+    md: 'w-11 h-11 text-lg',
     lg: 'w-16 h-16 text-3xl',
   }
 
   const avatar = getAvatarById(avatarId || null)
 
+  const sharedClasses = cn(
+    'rounded-full bg-gradient-to-br flex items-center justify-center transition-all',
+    'ring-1 ring-inset ring-ink/[0.06] shadow-xs',
+    avatar.bg,
+    sizes[size],
+    className
+  )
+
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className={cn(sharedClasses, 'hover:scale-105 active:scale-95 cursor-pointer')}
+      >
+        <span>{avatar.emoji}</span>
+      </button>
+    )
+  }
+
   return (
-    <button
-      onClick={onClick}
-      disabled={!onClick}
-      className={cn(
-        'rounded-full bg-gradient-to-br flex items-center justify-center transition-all border border-white/10',
-        avatar.bg,
-        sizes[size],
-        onClick && 'hover:scale-105 hover:border-white/20 cursor-pointer',
-        !onClick && 'cursor-default',
-        className
-      )}
-    >
-      <span className="drop-shadow-md">{avatar.emoji}</span>
-    </button>
+    <div className={sharedClasses}>
+      <span>{avatar.emoji}</span>
+    </div>
   )
 }

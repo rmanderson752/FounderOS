@@ -109,7 +109,7 @@ export function TodayView({
           <Zap className="w-5 h-5 text-amber-400" />
           <CardTitle>Today's Focus</CardTitle>
         </div>
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-ink-3">
           {dailyHours}h available today
         </div>
       </CardHeader>
@@ -123,9 +123,9 @@ export function TodayView({
           />
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-blue-400 font-medium">Working on:</span>
-            <span className="text-3xl font-mono text-white">{formatTime(elapsedSeconds)}</span>
+            <span className="text-3xl font-mono text-ink">{formatTime(elapsedSeconds)}</span>
           </div>
-          <p className="text-white font-medium mb-4">{activeTask.title}</p>
+          <p className="text-ink font-medium mb-4">{activeTask.title}</p>
           <div className="flex gap-2">
             <Button
               variant="secondary"
@@ -146,13 +146,13 @@ export function TodayView({
             </Button>
           </div>
           <div className="flex items-center justify-between mt-3">
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-ink-3">
               Estimated: {activeTask.estimated_minutes} min | 
               Elapsed: {Math.ceil(elapsedSeconds / 60)} min
             </div>
             <button
               onClick={() => setFocusModeTask(activeTask)}
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-[#1A1A1E]"
+              className="p-2 text-ink-3 hover:text-ink transition-colors rounded-lg hover:bg-surface-3"
               title="Focus mode"
             >
               <Maximize2 className="w-4 h-4" />
@@ -164,7 +164,7 @@ export function TodayView({
       {/* Task List */}
       <div className="space-y-2">
         {tasks.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-ink-4">
             <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p>No tasks scheduled for today</p>
             <p className="text-sm">Add tasks to get started</p>
@@ -188,9 +188,9 @@ export function TodayView({
 
       {/* Time Summary */}
       {tasks.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-[#1F1F23]">
+        <div className="mt-4 pt-4 border-t border-line">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Remaining capacity:</span>
+            <span className="text-ink-3">Remaining capacity:</span>
             <span className={cn(
               'font-medium',
               remainingSlots < 0 ? 'text-red-400' : 'text-blue-400'
@@ -247,8 +247,8 @@ function TaskRow({
       className={cn(
         'relative flex items-center gap-3 p-3 rounded-lg transition-colors',
         isActive ? 'bg-blue-500/10 border border-blue-500/20' : 
-        isNext ? 'bg-[#1A1A1E] border border-[#2A2A30]' : 
-        'hover:bg-[#1A1A1E]'
+        isNext ? 'bg-surface-3 border border-line-strong' : 
+        'hover:bg-surface-3'
       )}
     >
       <Confetti active={showConfetti} onComplete={onConfettiComplete} />
@@ -260,8 +260,8 @@ function TaskRow({
         className={cn(
           'w-8 h-8 rounded-full flex items-center justify-center transition-colors',
           isActive ? 'bg-blue-500 text-white' :
-          disabled ? 'bg-gray-800 text-gray-600 cursor-not-allowed' :
-          'bg-[#2A2A30] text-gray-400 hover:bg-blue-500 hover:text-white'
+          disabled ? 'bg-surface-3 text-ink-4 cursor-not-allowed' :
+          'bg-surface-3 text-ink-3 hover:bg-blue-500 hover:text-white'
         )}
       >
         {isActive ? (
@@ -275,11 +275,11 @@ function TaskRow({
       <div className="flex-1 min-w-0">
         <p className={cn(
           'font-medium truncate',
-          isActive ? 'text-white' : 'text-gray-200'
+          isActive ? 'text-ink' : 'text-gray-200'
         )}>
           {task.title}
         </p>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-ink-4">
           <span>{task.estimated_minutes} min</span>
           {task.is_recurring && (
             <>
@@ -297,7 +297,7 @@ function TaskRow({
       {!isActive && !disabled && (
         <button
           onClick={onQuickComplete}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:bg-green-500/20 hover:text-green-400 transition-colors"
+          className="w-8 h-8 rounded-full flex items-center justify-center text-ink-4 hover:bg-green-500/20 hover:text-green-400 transition-colors"
           title="Mark complete"
         >
           <Check className="w-4 h-4" />
@@ -308,7 +308,7 @@ function TaskRow({
       <div className="text-right">
         <span className={cn(
           'text-sm font-medium',
-          isActive ? 'text-blue-400' : 'text-gray-400'
+          isActive ? 'text-blue-400' : 'text-ink-3'
         )}>
           {Math.floor(task.estimated_minutes / 60) > 0 && `${Math.floor(task.estimated_minutes / 60)}h `}
           {task.estimated_minutes % 60}m

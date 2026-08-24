@@ -1,6 +1,5 @@
 // src/components/ui/Skeleton.tsx
-// Animated skeleton loading placeholders
-// Used to show content structure while data is loading
+// Shimmer skeleton loading placeholders with premium wave animation
 
 import { cn } from '@/lib/utils'
 
@@ -12,17 +11,19 @@ export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'animate-pulse rounded-lg bg-[#1F1F23]',
+        'rounded-xl bg-surface-3 relative overflow-hidden',
         className
       )}
-    />
+    >
+      <div className="absolute inset-0 shimmer-wave" />
+    </div>
   )
 }
 
 // Pre-built skeleton components for common patterns
 export function SkeletonCard({ className }: SkeletonProps) {
   return (
-    <div className={cn('bg-[#141417] border border-[#1F1F23] rounded-xl p-5', className)}>
+    <div className={cn('bg-white border border-line rounded-3xl p-6 shadow-sm', className)}>
       <Skeleton className="h-5 w-1/3 mb-4" />
       <div className="space-y-3">
         <Skeleton className="h-4 w-full" />
@@ -35,7 +36,7 @@ export function SkeletonCard({ className }: SkeletonProps) {
 
 export function SkeletonTaskList({ count = 3 }: { count?: number }) {
   return (
-    <div className="bg-[#141417] border border-[#1F1F23] rounded-xl p-5">
+    <div className="bg-white border border-line rounded-3xl p-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <Skeleton className="h-5 w-24" />
         <Skeleton className="h-5 w-5 rounded-full" />
@@ -58,7 +59,7 @@ export function SkeletonTaskList({ count = 3 }: { count?: number }) {
 
 export function SkeletonStats() {
   return (
-    <div className="bg-[#141417] border border-[#1F1F23] rounded-xl p-5">
+    <div className="bg-white border border-line rounded-3xl p-6 shadow-sm">
       <Skeleton className="h-5 w-24 mb-4" />
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -76,7 +77,7 @@ export function SkeletonStats() {
 
 export function SkeletonProgressBar() {
   return (
-    <div className="bg-[#141417] border border-[#1F1F23] rounded-xl p-4">
+    <div className="bg-white border border-line rounded-3xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-2">
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-10" />

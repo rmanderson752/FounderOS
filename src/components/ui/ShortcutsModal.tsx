@@ -48,11 +48,11 @@ export function ShortcutsModal() {
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-ink/25 backdrop-blur-sm flex items-center justify-center p-4 z-50"
       onClick={() => setIsOpen(false)}
     >
       <div 
-        className="w-full max-w-sm bg-[#141417] border border-[#1F1F23] rounded-xl p-6 shadow-2xl"
+        className="w-full max-w-sm bg-white border border-line rounded-3xl shadow-sm p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -61,11 +61,11 @@ export function ShortcutsModal() {
             <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
               <Keyboard className="w-5 h-5 text-blue-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white">Keyboard Shortcuts</h3>
+            <h3 className="text-lg font-semibold text-ink">Keyboard Shortcuts</h3>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-ink-3 hover:text-ink transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -76,12 +76,12 @@ export function ShortcutsModal() {
           {SHORTCUTS.map(({ key, description }) => (
             <div 
               key={key}
-              className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-[#1A1A1E] transition-colors"
+              className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-surface-3 transition-colors"
             >
-              <span className="text-sm text-gray-300">{description}</span>
+              <span className="text-sm text-ink-2">{description}</span>
               <kbd className={cn(
                 'px-2 py-1 text-xs font-mono font-medium rounded',
-                'bg-[#1A1A1E] border border-[#2A2A30] text-gray-300'
+                'bg-surface-3 border border-line-strong text-ink-2'
               )}>
                 {key}
               </kbd>
@@ -90,8 +90,8 @@ export function ShortcutsModal() {
         </div>
 
         {/* Footer hint */}
-        <p className="text-xs text-gray-500 text-center mt-6">
-          Press <kbd className="px-1.5 py-0.5 bg-[#1A1A1E] rounded text-gray-400">?</kbd> anytime to see shortcuts
+        <p className="text-xs text-ink-4 text-center mt-6">
+          Press <kbd className="px-1.5 py-0.5 bg-surface-3 rounded text-ink-3">?</kbd> anytime to see shortcuts
         </p>
       </div>
     </div>

@@ -58,7 +58,7 @@ export default function GoalsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-gray-400">Loading goals...</div>
+        <div className="text-ink-3">Loading goals...</div>
       </div>
     )
   }
@@ -68,8 +68,8 @@ export default function GoalsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Goals</h1>
-          <p className="text-gray-400 mt-1">Manage your goals and track progress</p>
+          <h1 className="text-2xl font-bold text-ink">Goals</h1>
+          <p className="text-ink-3 mt-1">Manage your goals and track progress</p>
         </div>
         <Link href="/goals/new">
           <Button>
@@ -97,7 +97,7 @@ export default function GoalsPage() {
       {/* Active Goals */}
       {activeGoals.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+          <h2 className="text-sm font-medium text-ink-3 uppercase tracking-wide mb-4 flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
             Active ({activeGoals.length})
           </h2>
@@ -119,7 +119,7 @@ export default function GoalsPage() {
       {/* Paused Goals */}
       {pausedGoals.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+          <h2 className="text-sm font-medium text-ink-3 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Clock className="w-4 h-4 text-amber-400" />
             Paused ({pausedGoals.length})
           </h2>
@@ -141,7 +141,7 @@ export default function GoalsPage() {
       {/* Completed Goals */}
       {completedGoals.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+          <h2 className="text-sm font-medium text-ink-3 uppercase tracking-wide mb-4 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
             Completed ({completedGoals.length})
           </h2>
@@ -179,7 +179,7 @@ export default function GoalsPage() {
               <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0" />
               <div>
                 <p className="text-rose-400 font-medium">This will delete the goal</p>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-ink-3 mt-1">
                   All tasks associated with "{deletingGoal?.title}" will also be deleted. This cannot be undone.
                 </p>
               </div>
@@ -234,7 +234,7 @@ function GoalCard({
           <div className="flex items-center gap-2">
             <h3 className={cn(
               "font-semibold",
-              isCompleted ? "text-gray-400" : "text-white"
+              isCompleted ? "text-ink-3" : "text-ink"
             )}>
               {goal.title}
             </h3>
@@ -246,13 +246,13 @@ function GoalCard({
           </div>
           
           {goal.description && (
-            <p className="text-sm text-gray-400 mt-1 line-clamp-2">{goal.description}</p>
+            <p className="text-sm text-ink-3 mt-1 line-clamp-2">{goal.description}</p>
           )}
           
           <div className="flex items-center gap-4 mt-3 text-sm">
             <div className={cn(
               "flex items-center gap-1.5",
-              isOverdue ? "text-rose-400" : "text-gray-400"
+              isOverdue ? "text-rose-400" : "text-ink-3"
             )}>
               <Calendar className="w-4 h-4" />
               <span>
@@ -264,7 +264,7 @@ function GoalCard({
                 }
               </span>
             </div>
-            <div className="text-gray-500">
+            <div className="text-ink-4">
               Due {format(new Date(goal.deadline), 'MMM d, yyyy')}
             </div>
           </div>
@@ -272,8 +272,8 @@ function GoalCard({
 
         {/* Actions Menu */}
         <Menu as="div" className="relative">
-          <Menu.Button className="p-2 rounded-lg hover:bg-white/10 transition-colors">
-            <MoreHorizontal className="w-5 h-5 text-gray-400" />
+          <Menu.Button className="p-2 rounded-lg hover:bg-ink/[0.06] transition-colors">
+            <MoreHorizontal className="w-5 h-5 text-ink-3" />
           </Menu.Button>
 
           <Transition
@@ -292,11 +292,11 @@ function GoalCard({
                     onClick={onEdit}
                     className={cn(
                       'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm',
-                      active ? 'bg-white/10' : ''
+                      active ? 'bg-ink/[0.06]' : ''
                     )}
                   >
-                    <Pencil className="w-4 h-4 text-gray-400" />
-                    <span className="text-white">Edit</span>
+                    <Pencil className="w-4 h-4 text-ink-3" />
+                    <span className="text-ink">Edit</span>
                   </button>
                 )}
               </Menu.Item>
@@ -308,11 +308,11 @@ function GoalCard({
                       onClick={onSetActive}
                       className={cn(
                         'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm',
-                        active ? 'bg-white/10' : ''
+                        active ? 'bg-ink/[0.06]' : ''
                       )}
                     >
                       <Play className="w-4 h-4 text-emerald-400" />
-                      <span className="text-white">Set as Active</span>
+                      <span className="text-ink">Set as Active</span>
                     </button>
                   )}
                 </Menu.Item>
@@ -325,11 +325,11 @@ function GoalCard({
                       onClick={onPause}
                       className={cn(
                         'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm',
-                        active ? 'bg-white/10' : ''
+                        active ? 'bg-ink/[0.06]' : ''
                       )}
                     >
                       <Pause className="w-4 h-4 text-amber-400" />
-                      <span className="text-white">Pause</span>
+                      <span className="text-ink">Pause</span>
                     </button>
                   )}
                 </Menu.Item>
@@ -342,17 +342,17 @@ function GoalCard({
                       onClick={onComplete}
                       className={cn(
                         'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm',
-                        active ? 'bg-white/10' : ''
+                        active ? 'bg-ink/[0.06]' : ''
                       )}
                     >
                       <CheckCircle className="w-4 h-4 text-emerald-400" />
-                      <span className="text-white">Mark Complete</span>
+                      <span className="text-ink">Mark Complete</span>
                     </button>
                   )}
                 </Menu.Item>
               )}
 
-              <div className="border-t border-white/10 my-1" />
+              <div className="border-t border-line my-1" />
 
               <Menu.Item>
                 {({ active }) => (

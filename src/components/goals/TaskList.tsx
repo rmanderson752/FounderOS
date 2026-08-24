@@ -60,7 +60,7 @@ export function TaskList({
           <CardTitle className="text-base">All Tasks</CardTitle>
           <button
             onClick={handleOpenModal}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-ink-3 hover:text-ink transition-colors"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -111,7 +111,7 @@ export function TaskList({
           )}
 
           {tasks.length === 0 && (
-            <div className="text-center py-6 text-gray-500">
+            <div className="text-center py-6 text-ink-4">
               <p className="text-sm">No tasks yet</p>
               <button
                 onClick={handleOpenModal}
@@ -168,7 +168,7 @@ function TaskSection({ title, tasks, onEdit, onDelete, onToggleComplete, collaps
     <div>
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center justify-between w-full text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 hover:text-gray-300 transition-colors"
+        className="flex items-center justify-between w-full text-xs font-medium text-ink-4 uppercase tracking-wide mb-2 hover:text-ink-2 transition-colors"
       >
         <span>{title} ({tasks.length})</span>
         <span>{isCollapsed ? '+' : '−'}</span>
@@ -203,7 +203,7 @@ function TaskItem({ task, onEdit, onDelete, onToggleComplete }: TaskItemProps) {
   const [showMenu, setShowMenu] = useState(false)
 
   return (
-    <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#1A1A1E] group">
+    <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-surface-3 group">
       {/* Checkbox */}
       <button
         onClick={onToggleComplete}
@@ -211,7 +211,7 @@ function TaskItem({ task, onEdit, onDelete, onToggleComplete }: TaskItemProps) {
           'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
           task.status === 'completed'
             ? 'bg-green-500 border-green-500'
-            : 'border-gray-600 hover:border-gray-400'
+            : 'border-line-strong hover:border-line-strong'
         )}
       >
         {task.status === 'completed' && <Check className="w-3 h-3 text-white" />}
@@ -220,18 +220,18 @@ function TaskItem({ task, onEdit, onDelete, onToggleComplete }: TaskItemProps) {
       {/* Task title */}
       <span className={cn(
         'flex-1 text-sm truncate',
-        task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-200'
+        task.status === 'completed' ? 'text-ink-4 line-through' : 'text-gray-200'
       )}>
         {task.title}
       </span>
 
       {/* Recurring indicator */}
       {task.is_recurring && (
-        <RotateCcw className="w-3 h-3 text-gray-500" />
+        <RotateCcw className="w-3 h-3 text-ink-4" />
       )}
 
       {/* Time */}
-      <span className="text-xs text-gray-500">
+      <span className="text-xs text-ink-4">
         {task.estimated_minutes}m
       </span>
 
@@ -239,7 +239,7 @@ function TaskItem({ task, onEdit, onDelete, onToggleComplete }: TaskItemProps) {
       <div className="relative">
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-white transition-all"
+          className="opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink transition-all"
         >
           <MoreVertical className="w-4 h-4" />
         </button>
@@ -250,17 +250,17 @@ function TaskItem({ task, onEdit, onDelete, onToggleComplete }: TaskItemProps) {
               className="fixed inset-0 z-10" 
               onClick={() => setShowMenu(false)} 
             />
-            <div className="absolute right-0 top-6 z-20 bg-[#1F1F24] border border-[#2A2A30] rounded-lg shadow-xl py-1 min-w-[120px]">
+            <div className="absolute right-0 top-6 z-20 bg-surface-3 border border-line-strong rounded-lg shadow-xl py-1 min-w-[120px]">
               <button
                 onClick={() => { onEdit(); setShowMenu(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-300 hover:bg-[#2A2A30]"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-ink-2 hover:bg-surface-3"
               >
                 <Edit2 className="w-3 h-3" />
                 Edit
               </button>
               <button
                 onClick={() => { onDelete(); setShowMenu(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-[#2A2A30]"
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-surface-3"
               >
                 <Trash2 className="w-3 h-3" />
                 Delete
@@ -316,7 +316,7 @@ function TaskModal({ task, onSave, onClose }: TaskModalProps) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Title */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label className="block text-sm font-medium text-ink-2 mb-1.5">
             Task
           </label>
           <Input
@@ -329,7 +329,7 @@ function TaskModal({ task, onSave, onClose }: TaskModalProps) {
 
         {/* Time estimate */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label className="block text-sm font-medium text-ink-2 mb-1.5">
             Estimated time
           </label>
           <div className="flex gap-2 mb-2">
@@ -342,7 +342,7 @@ function TaskModal({ task, onSave, onClose }: TaskModalProps) {
                   'px-3 py-1.5 text-sm rounded-lg border transition-colors',
                   estimatedMinutes === minutes
                     ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                    : 'border-[#2A2A30] text-gray-400 hover:border-gray-500'
+                    : 'border-line-strong text-ink-3 hover:border-line-strong'
                 )}
               >
                 {label}
@@ -356,7 +356,7 @@ function TaskModal({ task, onSave, onClose }: TaskModalProps) {
             min={1}
             max={480}
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-ink-4 mt-1">
             {Math.floor(estimatedMinutes / 60)}h {estimatedMinutes % 60}m
           </p>
         </div>
@@ -371,17 +371,17 @@ function TaskModal({ task, onSave, onClose }: TaskModalProps) {
                 onChange={(e) => setIsRecurring(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-10 h-5 bg-[#2A2A30] rounded-full peer-checked:bg-blue-500 transition-colors" />
+              <div className="w-10 h-5 bg-surface-3 rounded-full peer-checked:bg-blue-500 transition-colors" />
               <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
             </div>
-            <span className="text-sm text-gray-300">Recurring task</span>
+            <span className="text-sm text-ink-2">Recurring task</span>
           </label>
         </div>
 
         {/* Recurrence pattern */}
         {isRecurring && (
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            <label className="block text-sm font-medium text-ink-2 mb-1.5">
               Repeat
             </label>
             <div className="flex gap-2 flex-wrap">
@@ -398,7 +398,7 @@ function TaskModal({ task, onSave, onClose }: TaskModalProps) {
                     'px-3 py-1.5 text-sm rounded-lg border transition-colors',
                     recurrencePattern === value
                       ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                      : 'border-[#2A2A30] text-gray-400 hover:border-gray-500'
+                      : 'border-line-strong text-ink-3 hover:border-line-strong'
                   )}
                 >
                   {label}

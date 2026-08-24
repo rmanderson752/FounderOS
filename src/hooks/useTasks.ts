@@ -28,6 +28,7 @@ export function useTasks(goalId?: string) {
       if (error) throw error
       return data as Task[]
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes — tasks change more frequently
   })
 }
 
@@ -61,6 +62,7 @@ export function useActiveGoalTasks() {
       if (error) throw error
       return data as Task[]
     },
+    staleTime: 2 * 60 * 1000,
   })
 }
 
@@ -83,6 +85,7 @@ export function useAllTasks() {
       if (error) throw error
       return data as Task[]
     },
+    staleTime: 2 * 60 * 1000,
   })
 }
 
@@ -117,6 +120,7 @@ export function useTasksFromAllGoals() {
       if (error) throw error
       return data as (Task & { goals: { title: string; status: string } | null })[]
     },
+    staleTime: 2 * 60 * 1000,
   })
 }
 

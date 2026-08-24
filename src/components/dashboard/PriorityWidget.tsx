@@ -70,7 +70,7 @@ export function PriorityWidget() {
     <Card>
       <CardHeader>
         <CardTitle>Today's Priorities</CardTitle>
-        <span className="text-sm text-gray-400">
+        <span className="text-sm text-ink-3">
           {completedCount}/{priorities.length}
         </span>
       </CardHeader>
@@ -88,7 +88,7 @@ export function PriorityWidget() {
             <span
               className={cn(
                 'flex-1 text-sm transition-colors',
-                priority.completed ? 'text-gray-500 line-through' : 'text-white'
+                priority.completed ? 'text-ink-4 line-through' : 'text-ink'
               )}
             >
               {priority.text}
@@ -118,7 +118,7 @@ export function PriorityWidget() {
           ) : (
             <button
               onClick={() => setIsAdding(true)}
-              className="flex items-center gap-3 text-gray-500 hover:text-gray-300 transition-colors w-full"
+              className="flex items-center gap-3 text-ink-4 hover:text-ink-2 transition-colors w-full"
             >
               <Plus className="w-4 h-4" />
               <span className="text-sm">Add a priority...</span>

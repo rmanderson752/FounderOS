@@ -11,6 +11,7 @@ export interface UserProfile {
   avatar_id: string | null
   daily_hours_available: number | null
   work_days: number[] | null
+  review_day: number
   onboarded: boolean | null
   created_at: string | null
   updated_at: string | null
@@ -34,6 +35,7 @@ export function useUser() {
       if (error && error.code !== 'PGRST116') throw error
       return data as UserProfile | null
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes — user profile rarely changes
   })
 }
 

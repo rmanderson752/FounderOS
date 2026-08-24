@@ -1,9 +1,12 @@
 // src/components/ui/EmptyState.tsx
-// Reusable empty state component for displaying placeholder content
+// Friendly empty state — big soft icon bubble, springy entrance
+
+'use client'
 
 import { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from './Button'
+import { motion } from 'framer-motion'
 
 export interface EmptyStateProps {
   icon: LucideIcon
@@ -17,41 +20,51 @@ export interface EmptyStateProps {
   className?: string
 }
 
-export function EmptyState({ 
-  icon: Icon, 
-  title, 
-  description, 
-  action, 
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
   variant = 'default',
-  className 
+  className,
 }: EmptyStateProps) {
   const iconStyles = {
-    default: 'bg-indigo-500/10 text-indigo-400',
-    success: 'bg-emerald-500/10 text-emerald-400',
-    minimal: 'bg-white/5 text-gray-500',
+    default: 'bg-brand-50 text-brand-500',
+    success: 'bg-emerald-50 text-emerald-600',
+    minimal: 'bg-surface-3 text-ink-4',
   }
 
   return (
-    <div className={cn(
-      'flex flex-col items-center justify-center py-12 px-4 text-center',
-      className
-    )}>
-      <div className={cn(
-        'w-14 h-14 rounded-2xl flex items-center justify-center mb-4',
-        iconStyles[variant]
-      )}>
-        <Icon className="w-7 h-7" />
-      </div>
-      <h3 className="text-lg font-semibold text-white mb-1">{title}</h3>
-      <p className="text-sm text-gray-400 max-w-sm mb-6">{description}</p>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className={cn(
+        'flex flex-col items-center justify-center py-14 px-4 text-center',
+        className
+      )}
+    >
+      <motion.div
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 0.08, type: 'spring', stiffness: 300, damping: 16 }}
+        className={cn(
+          'w-20 h-20 rounded-[28px] flex items-center justify-center mb-5',
+          iconStyles[variant]
+        )}
+      >
+        <Icon className="w-9 h-9" strokeWidth={1.9} />
+      </motion.div>
+      <h3 className="text-xl font-semibold text-ink mb-2 tracking-tight">{title}</h3>
+      <p className="text-sm text-ink-3 max-w-sm mb-7 leading-relaxed">{description}</p>
       {action && (
-        <Button 
+        <Button
           onClick={action.onClick}
           variant={variant === 'success' ? 'secondary' : 'primary'}
         >
           {action.label}
         </Button>
       )}
-    </div>
+    </motion.div>
   )
 }

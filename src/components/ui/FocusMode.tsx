@@ -86,11 +86,11 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0A0A0B] z-50 flex flex-col">
+    <div className="fixed inset-0 bg-canvas z-50 flex flex-col">
       {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-6 right-6 p-2 text-gray-500 hover:text-white transition-colors"
+        className="absolute top-6 right-6 p-2 text-ink-4 hover:text-ink transition-colors"
       >
         <X className="w-6 h-6" />
       </button>
@@ -98,14 +98,14 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         {/* Task title */}
-        <h1 className="text-2xl md:text-4xl font-bold text-white text-center max-w-2xl mb-8">
+        <h1 className="text-2xl md:text-4xl font-bold text-ink text-center max-w-2xl mb-8">
           {task.title}
         </h1>
 
         {/* Large timer */}
         <div className={cn(
           'text-7xl md:text-9xl font-mono font-bold mb-8 transition-colors',
-          isOvertime ? 'text-amber-400' : 'text-white'
+          isOvertime ? 'text-amber-400' : 'text-ink'
         )}>
           {formatTime(elapsedSeconds)}
         </div>
@@ -119,7 +119,7 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
               cy="128"
               r="120"
               fill="none"
-              stroke="#1F1F23"
+              stroke="#EDE9E2"
               strokeWidth="8"
             />
             {/* Progress circle */}
@@ -128,7 +128,7 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
               cy="128"
               r="120"
               fill="none"
-              stroke={isOvertime ? '#F59E0B' : '#3B82F6'}
+              stroke={isOvertime ? '#F5A524' : '#6C5CE7'}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={2 * Math.PI * 120}
@@ -139,8 +139,8 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
           
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-gray-400 text-sm mb-1">Estimated</span>
-            <span className="text-white text-xl font-semibold">
+            <span className="text-ink-3 text-sm mb-1">Estimated</span>
+            <span className="text-ink text-xl font-semibold">
               {task.estimated_minutes} min
             </span>
             {isOvertime && (
@@ -156,7 +156,7 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
           {onSkip && (
             <button
               onClick={onSkip}
-              className="p-4 rounded-full bg-[#1A1A1E] text-gray-400 hover:text-white hover:bg-[#2A2A30] transition-colors"
+              className="p-4 rounded-full bg-surface-3 text-ink-3 hover:text-ink hover:bg-surface-3 transition-colors"
               title="Skip task"
             >
               <SkipForward className="w-6 h-6" />
@@ -189,13 +189,13 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
         </div>
 
         {/* Keyboard hints */}
-        <div className="flex items-center gap-6 mt-8 text-sm text-gray-500">
+        <div className="flex items-center gap-6 mt-8 text-sm text-ink-4">
           <span>
-            <kbd className="px-2 py-1 bg-[#1A1A1E] rounded text-gray-400">Space</kbd>
+            <kbd className="px-2 py-1 bg-surface-3 rounded text-ink-3">Space</kbd>
             {' '}Play/Pause
           </span>
           <span>
-            <kbd className="px-2 py-1 bg-[#1A1A1E] rounded text-gray-400">Esc</kbd>
+            <kbd className="px-2 py-1 bg-surface-3 rounded text-ink-3">Esc</kbd>
             {' '}Exit
           </span>
         </div>
@@ -203,19 +203,19 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
 
       {/* Break prompt modal */}
       {showBreakPrompt && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
-          <div className="bg-[#141417] border border-[#1F1F23] rounded-xl p-8 max-w-md text-center">
+        <div className="absolute inset-0 bg-ink/25 flex items-center justify-center">
+          <div className="bg-white border border-line rounded-3xl shadow-sm p-8 max-w-md text-center">
             <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
               <Coffee className="w-8 h-8 text-amber-400" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Time for a break?</h2>
-            <p className="text-gray-400 mb-6">
+            <h2 className="text-xl font-bold text-ink mb-2">Time for a break?</h2>
+            <p className="text-ink-3 mb-6">
               You've been focused for 45 minutes. Taking short breaks helps maintain productivity.
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={dismissBreakPrompt}
-                className="px-4 py-2 bg-[#1A1A1E] text-white rounded-lg hover:bg-[#2A2A30] transition-colors"
+                className="px-4 py-2 bg-surface-3 text-ink rounded-lg hover:bg-surface-3 transition-colors"
               >
                 Keep going
               </button>
@@ -224,7 +224,7 @@ export function FocusMode({ task, onComplete, onClose, onSkip }: FocusModeProps)
                   setShowBreakPrompt(false)
                   // Could add a 5-min break timer here
                 }}
-                className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                className="px-4 py-2 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-colors"
               >
                 Take 5 min break
               </button>

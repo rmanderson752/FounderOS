@@ -2,198 +2,280 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { format, addDays } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
-import { Button, Input, Card } from '@/components/ui'
-import { ChevronRight, ChevronLeft, Check, Target, Clock, Calendar, Rocket, Sparkles } from 'lucide-react'
+import { Card } from '@/components/ui'
+import { ProjectColorPicker } from '@/components/projects/ProjectColorPicker'
+import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR, DAY_NAMES } from '@/lib/constants'
+import {
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  Plus,
+  X,
+  Rocket,
+  FolderOpen,
+  Clock,
+  Calendar,
+  ListTodo,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const STEPS = [
-  { id: 'welcome', title: 'Welcome', description: 'Get started' },
-  { id: 'schedule', title: 'Schedule', description: 'Set your availability' },
-  { id: 'goal', title: 'Goal', description: 'Set your first goal' },
+  { id: 'projects', title: 'Projects', icon: FolderOpen },
+  { id: 'schedule', title: 'Schedule', icon: Clock },
+  { id: 'template', title: 'Plan', icon: Calendar },
+  { id: 'tasks', title: 'Tasks', icon: ListTodo },
 ]
 
-const DAYS_OF_WEEK = [
-  { value: 0, label: 'Sun' },
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
-]
+interface ProjectDraft {
+  name: string
+  color: string
+  weekly_hours: number
+}
+
+interface DaySchedule {
+  available_hours: number
+  is_available: boolean
+}
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(0)
+  const [step, setStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
-  const [formData, setFormData] = useState({
+
+  // Step 1: Projects
+  const [projects, setProjects] = useState<ProjectDraft[]>([])
+  const [addingProject, setAddingProject] = useState(false)
+  const [newProject, setNewProject] = useState<ProjectDraft>({
     name: '',
-    dailyHours: 6,
-    workDays: [1, 2, 3, 4, 5],
-    goalTitle: '',
-    goalDeadline: format(addDays(new Date(), 14), 'yyyy-MM-dd'),
+    color: DEFAULT_PROJECT_COLOR,
+    weekly_hours: 8,
   })
 
+  // Step 2: Schedule
+  const [schedule, setSchedule] = useState<DaySchedule[]>(
+    DAY_NAMES.map((_, i) => ({
+      available_hours: i >= 1 && i <= 5 ? 8 : 0,
+      is_available: i >= 1 && i <= 5,
+    }))
+  )
+
+  // Step 3: Template — auto-generated, user can adjust
+  // We'll auto-distribute projects across available days
+
+  // Step 4: Tasks for first project
+  const [tasks, setTasks] = useState<string[]>([])
+  const [newTask, setNewTask] = useState('')
+
+  const totalWeeklyHours = schedule.reduce(
+    (sum, d) => sum + (d.is_available ? d.available_hours : 0),
+    0
+  )
+  const totalProjectHours = projects.reduce((sum, p) => sum + p.weekly_hours, 0)
+
   const canProceed = () => {
-    switch (currentStep) {
+    switch (step) {
       case 0:
-        return formData.name.trim().length > 0
+        return projects.length > 0
       case 1:
-        return formData.dailyHours > 0 && formData.workDays.length > 0
+        return totalWeeklyHours > 0
       case 2:
-        return formData.goalTitle.trim().length > 0
+        return true // Template step is optional
+      case 3:
+        return true // Tasks step is optional
       default:
         return true
     }
   }
 
-  const handleNext = () => {
-    if (!canProceed()) {
-      setError('Please fill in the required fields')
-      return
-    }
-    setError(null)
-    if (currentStep < STEPS.length - 1) {
-      setCurrentStep(currentStep + 1)
-    }
+  const addProject = () => {
+    if (!newProject.name.trim()) return
+    setProjects([...projects, { ...newProject, name: newProject.name.trim() }])
+
+    // Pick next unused color
+    const usedColors = new Set([...projects.map((p) => p.color), newProject.color])
+    const nextColor = PROJECT_COLORS.find((c) => !usedColors.has(c)) || DEFAULT_PROJECT_COLOR
+
+    setNewProject({ name: '', color: nextColor, weekly_hours: 8 })
+    setAddingProject(false)
   }
 
-  const handleBack = () => {
-    setError(null)
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
-    }
+  const removeProject = (index: number) => {
+    setProjects(projects.filter((_, i) => i !== index))
   }
 
-  const toggleDay = (day: number) => {
-    const newDays = formData.workDays.includes(day)
-      ? formData.workDays.filter(d => d !== day)
-      : [...formData.workDays, day].sort()
-    setFormData({ ...formData, workDays: newDays })
+  const addTask = () => {
+    if (!newTask.trim()) return
+    setTasks([...tasks, newTask.trim()])
+    setNewTask('')
   }
+
+  // Auto-generate template blocks from projects + schedule
+  const generateTemplate = () => {
+    const availableDays = schedule
+      .map((d, i) => ({ day: i, hours: d.available_hours }))
+      .filter((d) => d.hours > 0)
+
+    if (availableDays.length === 0 || projects.length === 0) return []
+
+    const blocks: {
+      project_index: number
+      day_of_week: number
+      hours: number
+      position: number
+    }[] = []
+
+    // Simple round-robin: assign each project to days proportionally
+    const remaining = projects.map((p) => p.weekly_hours)
+    let dayIdx = 0
+
+    for (let pIdx = 0; pIdx < projects.length; pIdx++) {
+      while (remaining[pIdx] > 0 && dayIdx < availableDays.length * 3) {
+        const day = availableDays[dayIdx % availableDays.length]
+        const dayAllocated = blocks
+          .filter((b) => b.day_of_week === day.day)
+          .reduce((s, b) => s + b.hours, 0)
+        const dayFree = day.hours - dayAllocated
+
+        if (dayFree > 0) {
+          const hrs = Math.min(remaining[pIdx], dayFree)
+          const pos = blocks.filter((b) => b.day_of_week === day.day).length
+          blocks.push({ project_index: pIdx, day_of_week: day.day, hours: hrs, position: pos })
+          remaining[pIdx] -= hrs
+        }
+        dayIdx++
+      }
+    }
+
+    return blocks
+  }
+
+  const templateBlocks = generateTemplate()
 
   const handleComplete = async () => {
-    if (!canProceed()) {
-      setError('Please enter a goal title')
-      return
-    }
-
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const supabase = createClient()
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      
-      if (authError) {
-        console.error('Auth error:', authError)
-        throw authError
-      }
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) {
         router.push('/login')
         return
       }
 
-      // Check if user profile exists
+      // 1. Update user profile
       const { data: existingUser } = await supabase
         .from('users')
         .select('id')
         .eq('id', user.id)
         .single()
 
-      if (existingUser) {
-        // Update existing user
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            name: formData.name.trim(),
-            daily_hours_available: formData.dailyHours,
-            work_days: formData.workDays,
-            onboarded: true,
-          })
-          .eq('id', user.id)
-
-        if (updateError) {
-          console.error('Update error:', updateError)
-          throw updateError
-        }
-      } else {
-        // Insert new user profile
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: user.id,
-            email: user.email,
-            name: formData.name.trim(),
-            daily_hours_available: formData.dailyHours,
-            work_days: formData.workDays,
-            onboarded: true,
-          })
-
-        if (insertError) {
-          console.error('Insert error:', insertError)
-          throw insertError
-        }
+      const userPayload = {
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Founder',
+        onboarded: true,
       }
 
-      // Create first goal
-      const { error: goalError } = await supabase
-        .from('goals')
-        .insert({
-          user_id: user.id,
-          title: formData.goalTitle.trim(),
-          deadline: formData.goalDeadline,
-          status: 'active',
-        })
+      if (existingUser) {
+        await supabase.from('users').update(userPayload).eq('id', user.id)
+      } else {
+        await supabase.from('users').insert({ id: user.id, email: user.email!, ...userPayload })
+      }
 
-      if (goalError) {
-        console.error('Goal error:', goalError)
-        throw goalError
+      // 2. Create projects
+      const projectIds: string[] = []
+      for (let i = 0; i < projects.length; i++) {
+        const { data, error: pErr } = await supabase
+          .from('projects')
+          .insert({
+            user_id: user.id,
+            name: projects[i].name,
+            color: projects[i].color,
+            weekly_hours: projects[i].weekly_hours,
+            priority: i,
+            status: 'active',
+          })
+          .select('id')
+          .single()
+
+        if (pErr) throw pErr
+        projectIds.push(data.id)
+      }
+
+      // 3. Save schedule constraints
+      const scheduleRows = schedule.map((d, i) => ({
+        user_id: user.id,
+        day_of_week: i,
+        available_hours: d.available_hours,
+        is_available: d.is_available,
+      }))
+      const { error: sErr } = await supabase
+        .from('schedule_constraints')
+        .upsert(scheduleRows, { onConflict: 'user_id,day_of_week' })
+      if (sErr) throw sErr
+
+      // 4. Save template blocks
+      if (templateBlocks.length > 0) {
+        const blockRows = templateBlocks.map((b) => ({
+          user_id: user.id,
+          project_id: projectIds[b.project_index],
+          day_of_week: b.day_of_week,
+          slot: 'full' as const,
+          hours: b.hours,
+          position: b.position,
+        }))
+        const { error: tErr } = await supabase.from('template_blocks').insert(blockRows)
+        if (tErr) throw tErr
+      }
+
+      // 5. Create tasks for first project
+      if (tasks.length > 0 && projectIds.length > 0) {
+        const taskRows = tasks.map((title, i) => ({
+          user_id: user.id,
+          project_id: projectIds[0],
+          title,
+          status: 'todo' as const,
+          estimated_minutes: 0,
+          priority: i,
+        }))
+        const { error: taskErr } = await supabase.from('tasks').insert(taskRows)
+        if (taskErr) throw taskErr
       }
 
       router.push('/')
       router.refresh()
-    } catch (err: any) {
-      console.error('Onboarding error:', err)
-      setError(err?.message || 'Something went wrong. Please try again.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong'
+      setError(message)
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Progress indicator */}
+        {/* Step indicators */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          {STEPS.map((step, index) => (
-            <div key={step.id} className="flex items-center">
+          {STEPS.map((s, i) => (
+            <div key={s.id} className="flex items-center">
               <div
                 className={cn(
                   'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors',
-                  index < currentStep
+                  i < step
                     ? 'bg-blue-600 text-white'
-                    : index === currentStep
+                    : i === step
                     ? 'bg-blue-600 text-white'
-                    : 'bg-[#1A1A1E] text-gray-400'
+                    : 'bg-surface-3 text-ink-3'
                 )}
               >
-                {index < currentStep ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  index + 1
-                )}
+                {i < step ? <Check className="w-4 h-4" /> : <s.icon className="w-4 h-4" />}
               </div>
-              {index < STEPS.length - 1 && (
+              {i < STEPS.length - 1 && (
                 <div
-                  className={cn(
-                    'w-12 h-0.5 mx-2',
-                    index < currentStep ? 'bg-blue-600' : 'bg-[#1A1A1E]'
-                  )}
+                  className={cn('w-10 h-0.5 mx-1.5', i < step ? 'bg-blue-600' : 'bg-surface-3')}
                 />
               )}
             </div>
@@ -201,18 +283,301 @@ export default function OnboardingPage() {
         </div>
 
         <Card className="p-8">
-          {/* Step content */}
-          {currentStep === 0 && (
-            <StepWelcome formData={formData} setFormData={setFormData} />
-          )}
-          {currentStep === 1 && (
-            <StepSchedule formData={formData} setFormData={setFormData} toggleDay={toggleDay} />
-          )}
-          {currentStep === 2 && (
-            <StepGoal formData={formData} setFormData={setFormData} />
+          {/* Step 1: Projects */}
+          {step === 0 && (
+            <div className="space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-ink">What are you working on?</h2>
+                <p className="text-sm text-ink-3 mt-1">
+                  Add the projects that need your time each week.
+                </p>
+              </div>
+
+              {/* Project list */}
+              <div className="space-y-2">
+                {projects.map((project, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 px-3 py-2.5 bg-canvas border border-line rounded-lg"
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: project.color }}
+                    />
+                    <span className="text-sm text-ink font-medium flex-1">{project.name}</span>
+                    <span className="text-xs text-ink-4">{project.weekly_hours}h/wk</span>
+                    <button
+                      onClick={() => removeProject(i)}
+                      className="p-1 text-ink-4 hover:text-red-400 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add project form */}
+              {addingProject ? (
+                <div className="space-y-3 p-4 bg-canvas border border-line rounded-xl">
+                  <input
+                    type="text"
+                    value={newProject.name}
+                    onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                    placeholder="Project name"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && addProject()}
+                    className="w-full bg-canvas border border-line-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-4 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                  <ProjectColorPicker
+                    value={newProject.color}
+                    onChange={(c) => setNewProject({ ...newProject, color: c })}
+                  />
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      value={newProject.weekly_hours}
+                      onChange={(e) =>
+                        setNewProject({
+                          ...newProject,
+                          weekly_hours: Math.max(1, parseFloat(e.target.value) || 0),
+                        })
+                      }
+                      min="1"
+                      max="40"
+                      step="0.5"
+                      className="w-20 bg-canvas border border-line-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                    <span className="text-xs text-ink-3">hours/week</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setAddingProject(false)}
+                      className="flex-1 bg-transparent border border-line-strong hover:bg-surface-3 text-ink font-medium text-sm px-3 py-2 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={addProject}
+                      disabled={!newProject.name.trim()}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium text-sm px-3 py-2 rounded-full transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingProject(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg border border-dashed border-line-strong text-ink-3 hover:text-ink hover:border-line-strong transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Project
+                </button>
+              )}
+
+              {projects.length > 0 && (
+                <div className="text-center text-xs text-ink-4">
+                  {totalProjectHours}h/week across {projects.length} project
+                  {projects.length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Error message */}
+          {/* Step 2: Schedule */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-ink">When do you work?</h2>
+                <p className="text-sm text-ink-3 mt-1">
+                  Set your available hours for each day.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {schedule.map((day, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                      day.is_available
+                        ? 'bg-canvas border-line'
+                        : 'bg-canvas border-line opacity-50'
+                    )}
+                  >
+                    <button
+                      onClick={() => {
+                        const updated = [...schedule]
+                        updated[i] = { ...day, is_available: !day.is_available }
+                        setSchedule(updated)
+                      }}
+                      className={cn(
+                        'w-10 h-6 rounded-full transition-colors flex-shrink-0 relative',
+                        day.is_available ? 'bg-blue-600' : 'bg-surface-3'
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'w-4 h-4 rounded-full bg-white absolute top-1 transition-transform',
+                          day.is_available ? 'translate-x-5' : 'translate-x-1'
+                        )}
+                      />
+                    </button>
+                    <span className="text-sm font-medium text-ink w-20">{DAY_NAMES[i]}</span>
+                    {day.is_available ? (
+                      <>
+                        <input
+                          type="number"
+                          value={day.available_hours}
+                          onChange={(e) => {
+                            const updated = [...schedule]
+                            updated[i] = {
+                              ...day,
+                              available_hours: Math.max(0, Math.min(16, parseFloat(e.target.value) || 0)),
+                            }
+                            setSchedule(updated)
+                          }}
+                          min="0"
+                          max="16"
+                          step="0.5"
+                          className="w-16 bg-canvas border border-line-strong rounded-md px-2 py-1 text-sm text-ink text-center focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        <span className="text-xs text-ink-4">hours</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-ink-4">Off</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-3 bg-canvas border border-line rounded-lg text-center">
+                <span className="text-2xl font-semibold text-ink">{totalWeeklyHours}h</span>
+                <span className="text-sm text-ink-3 ml-2">available per week</span>
+                {totalProjectHours > totalWeeklyHours && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    Your projects need {totalProjectHours}h — {totalProjectHours - totalWeeklyHours}h over budget
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Template preview */}
+          {step === 2 && (
+            <div className="space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-ink">Your weekly plan</h2>
+                <p className="text-sm text-ink-3 mt-1">
+                  We auto-assigned your projects. You can adjust this later.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
+                  const dayBlocks = templateBlocks.filter((b) => b.day_of_week === dayOfWeek)
+                  const daySchedule = schedule[dayOfWeek]
+
+                  return (
+                    <div
+                      key={dayOfWeek}
+                      className={cn(
+                        'rounded-lg border p-2 min-h-[80px]',
+                        daySchedule.is_available && daySchedule.available_hours > 0
+                          ? 'border-line bg-canvas'
+                          : 'border-line bg-canvas opacity-40'
+                      )}
+                    >
+                      <span className="text-[10px] font-semibold text-ink-3 block mb-1">
+                        {DAY_NAMES[dayOfWeek].slice(0, 3)}
+                      </span>
+                      <div className="space-y-1">
+                        {dayBlocks.map((block, bi) => (
+                          <div
+                            key={bi}
+                            className="rounded px-1.5 py-1 text-[10px]"
+                            style={{
+                              backgroundColor: `${projects[block.project_index]?.color}20`,
+                              borderLeft: `2px solid ${projects[block.project_index]?.color}`,
+                            }}
+                          >
+                            <span className="text-ink font-medium truncate block">
+                              {projects[block.project_index]?.name}
+                            </span>
+                            <span className="text-ink-4">{block.hours}h</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <p className="text-xs text-ink-4 text-center">
+                You can customize this in detail from the Week view after setup.
+              </p>
+            </div>
+          )}
+
+          {/* Step 4: Tasks */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-ink">What&apos;s first?</h2>
+                <p className="text-sm text-ink-3 mt-1">
+                  Add a few tasks for{' '}
+                  <span className="text-ink font-medium">
+                    {projects[0]?.name || 'your first project'}
+                  </span>
+                  . Optional — you can add more later.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                {tasks.map((task, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 px-3 py-2 bg-canvas border border-line rounded-lg"
+                  >
+                    <div className="w-4 h-4 rounded border border-line-strong flex-shrink-0" />
+                    <span className="text-sm text-ink flex-1">{task}</span>
+                    <button
+                      onClick={() => setTasks(tasks.filter((_, j) => j !== i))}
+                      className="p-1 text-ink-4 hover:text-red-400 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  addTask()
+                }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  placeholder="Add a task..."
+                  autoFocus
+                  className="flex-1 bg-canvas border border-line-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-4 focus:outline-none focus:border-blue-500 transition-colors"
+                />
+                <button
+                  type="submit"
+                  disabled={!newTask.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm px-3 py-2 rounded-full transition-colors"
+                >
+                  Add
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Error */}
           {error && (
             <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
               <p className="text-sm text-red-400">{error}</p>
@@ -220,229 +585,88 @@ export default function OnboardingPage() {
           )}
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-[#1F1F23]">
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-line">
             <button
-              onClick={handleBack}
-              disabled={currentStep === 0}
+              onClick={() => {
+                setError(null)
+                setStep((s) => s - 1)
+              }}
+              disabled={step === 0}
               className={cn(
                 'flex items-center gap-1 text-sm font-medium transition-colors',
-                currentStep === 0
-                  ? 'text-gray-600 cursor-not-allowed'
-                  : 'text-gray-400 hover:text-white'
+                step === 0 ? 'text-ink-4 cursor-not-allowed' : 'text-ink-3 hover:text-ink'
               )}
             >
               <ChevronLeft className="w-4 h-4" />
               Back
             </button>
-            
-            {currentStep < STEPS.length - 1 ? (
-              <Button onClick={handleNext} disabled={!canProceed()}>
+
+            {step < STEPS.length - 1 ? (
+              <button
+                onClick={() => {
+                  if (!canProceed()) {
+                    setError('Add at least one project to continue')
+                    return
+                  }
+                  setError(null)
+                  setStep((s) => s + 1)
+                }}
+                disabled={!canProceed()}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium text-sm px-4 py-2 rounded-full transition-colors flex items-center gap-1"
+              >
                 Next
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+                <ChevronRight className="w-4 h-4" />
+              </button>
             ) : (
-              <Button 
-                onClick={handleComplete} 
-                disabled={isLoading || !canProceed()}
+              <button
+                onClick={handleComplete}
+                disabled={isLoading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium text-sm px-4 py-2.5 rounded-full transition-colors flex items-center gap-1.5"
               >
                 {isLoading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin h-4 w-4 text-ink"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     Setting up...
                   </>
                 ) : (
                   <>
-                    Let's Go!
-                    <Rocket className="w-4 h-4 ml-1" />
+                    Let&apos;s Go!
+                    <Rocket className="w-4 h-4" />
                   </>
                 )}
-              </Button>
+              </button>
             )}
           </div>
         </Card>
 
-        {/* Skip option for goal step */}
-        {currentStep === 2 && (
-          <p className="text-center text-sm text-gray-500 mt-4">
-            Not sure yet?{' '}
-            <button 
-              onClick={() => {
-                setFormData({ ...formData, goalTitle: 'My First Goal' })
-                handleComplete()
-              }}
-              className="text-blue-400 hover:underline"
-            >
-              Skip for now
+        {/* Skip option on tasks step */}
+        {step === 3 && tasks.length === 0 && (
+          <p className="text-center text-sm text-ink-4 mt-4">
+            No tasks yet?{' '}
+            <button onClick={handleComplete} className="text-blue-400 hover:underline">
+              Skip and finish setup
             </button>
           </p>
         )}
-      </div>
-    </div>
-  )
-}
-
-function StepWelcome({ formData, setFormData }: { formData: any; setFormData: (data: any) => void }) {
-  return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
-          <Sparkles className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-2xl font-bold text-white">Welcome to Founder OS</h2>
-        <p className="text-gray-400 mt-2 max-w-sm mx-auto">
-          Your personal command center for getting things done. Let's set you up in 60 seconds.
-        </p>
-      </div>
-
-      <div className="space-y-4 pt-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
-            What should we call you?
-          </label>
-          <Input
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Your name"
-            autoFocus
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StepSchedule({ formData, setFormData, toggleDay }: { formData: any; setFormData: (data: any) => void; toggleDay: (day: number) => void }) {
-  return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
-          <Clock className="w-6 h-6 text-blue-400" />
-        </div>
-        <h2 className="text-xl font-semibold text-white">When do you work?</h2>
-        <p className="text-gray-400 mt-1">We'll use this to pace your tasks realistically</p>
-      </div>
-
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Hours available per day
-          </label>
-          <div className="flex items-center gap-4">
-            <input
-              type="range"
-              min="1"
-              max="12"
-              value={formData.dailyHours}
-              onChange={(e) => setFormData({ ...formData, dailyHours: parseInt(e.target.value) })}
-              className="flex-1 h-2 bg-[#1A1A1E] rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-            <span className="text-2xl font-bold text-white w-16 text-right">{formData.dailyHours}h</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            {formData.dailyHours <= 4 ? "Light schedule - great for side projects" : 
-             formData.dailyHours <= 6 ? "Balanced schedule - sustainable pace" :
-             formData.dailyHours <= 8 ? "Full-time focus - ambitious!" :
-             "Intense schedule - remember to take breaks!"}
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-3">Which days do you work?</label>
-          <div className="flex gap-2 justify-center">
-            {DAYS_OF_WEEK.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => toggleDay(value)}
-                className={cn(
-                  'w-11 h-11 rounded-lg text-sm font-medium transition-all',
-                  formData.workDays.includes(value)
-                    ? 'bg-blue-500 text-white scale-105'
-                    : 'bg-[#1A1A1E] text-gray-400 hover:bg-[#2A2A30]'
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg text-center border border-blue-500/20">
-          <p className="text-3xl font-bold text-white">{formData.workDays.length * formData.dailyHours}h</p>
-          <p className="text-sm text-gray-400">available per week</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function StepGoal({ formData, setFormData }: { formData: any; setFormData: (data: any) => void }) {
-  return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
-          <Target className="w-6 h-6 text-blue-400" />
-        </div>
-        <h2 className="text-xl font-semibold text-white">What's your #1 goal?</h2>
-        <p className="text-gray-400 mt-1">Focus on one thing at a time for best results</p>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
-            I want to...
-          </label>
-          <Input
-            value={formData.goalTitle}
-            onChange={(e) => setFormData({ ...formData, goalTitle: e.target.value })}
-            placeholder="Launch my MVP, finish the course, ship the feature..."
-            autoFocus
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">By when?</label>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {[
-              { label: '1 week', days: 7 },
-              { label: '2 weeks', days: 14 },
-              { label: '1 month', days: 30 },
-            ].map(({ label, days }) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setFormData({ ...formData, goalDeadline: format(addDays(new Date(), days), 'yyyy-MM-dd') })}
-                className={cn(
-                  'px-4 py-2 text-sm rounded-lg border transition-colors',
-                  formData.goalDeadline === format(addDays(new Date(), days), 'yyyy-MM-dd')
-                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                    : 'border-[#2A2A30] text-gray-400 hover:border-gray-500'
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              type="date"
-              value={formData.goalDeadline}
-              onChange={(e) => setFormData({ ...formData, goalDeadline: e.target.value })}
-              className="pl-10"
-              min={format(new Date(), 'yyyy-MM-dd')}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4 bg-[#111113] rounded-lg">
-        <p className="text-sm text-gray-400">
-          💡 <span className="text-gray-300">Pro tip:</span> Break your goal into small tasks after setup. We'll help you stay on track.
-        </p>
       </div>
     </div>
   )

@@ -25,6 +25,7 @@ export function useGoals() {
       if (error) throw error
       return data as Goal[]
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes — goals rarely change
   })
 }
 
@@ -49,6 +50,7 @@ export function useActiveGoal() {
       if (error && error.code !== 'PGRST116') throw error
       return data as Goal | null
     },
+    staleTime: 5 * 60 * 1000,
   })
 }
 

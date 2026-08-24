@@ -6,21 +6,17 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  Search, 
-  LayoutDashboard, 
-  Calendar, 
-  TrendingUp, 
+import {
+  Search,
+  LayoutDashboard,
+  Calendar,
+  TrendingUp,
   Settings,
   Plus,
   Target,
-  Sun,
-  Moon,
   Keyboard,
-  LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useTheme } from '@/components/ThemeProvider'
 
 interface Command {
   id: string
@@ -36,7 +32,6 @@ export function CommandPalette() {
   const [search, setSearch] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const router = useRouter()
-  const { theme, toggleTheme } = useTheme()
 
   const commands: Command[] = useMemo(() => [
     // Navigation
@@ -94,15 +89,8 @@ export function CommandPalette() {
       section: 'actions',
     },
     // Settings
-    { 
-      id: 'toggle-theme', 
-      label: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', 
-      icon: theme === 'dark' ? Sun : Moon,
-      action: toggleTheme,
-      section: 'settings',
-    },
-    { 
-      id: 'shortcuts', 
+    {
+      id: 'shortcuts',
       label: 'View keyboard shortcuts', 
       icon: Keyboard, 
       shortcut: '?',
@@ -111,7 +99,7 @@ export function CommandPalette() {
       },
       section: 'settings',
     },
-  ], [router, theme, toggleTheme])
+  ], [router])
 
   // Filter commands based on search
   const filteredCommands = useMemo(() => {
@@ -197,25 +185,25 @@ export function CommandPalette() {
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[20vh] p-4 z-50"
+      className="fixed inset-0 bg-ink/25 backdrop-blur-sm flex items-start justify-center pt-[20vh] p-4 z-50"
       onClick={() => setIsOpen(false)}
     >
       <div 
-        className="w-full max-w-lg bg-[#141417] border border-[#1F1F23] rounded-xl shadow-2xl overflow-hidden"
+        className="w-full max-w-lg bg-white border border-line rounded-3xl shadow-sm shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1F1F23]">
-          <Search className="w-5 h-5 text-gray-400" />
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-line">
+          <Search className="w-5 h-5 text-ink-3" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Type a command or search..."
-            className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-sm"
+            className="flex-1 bg-transparent text-ink placeholder-gray-500 outline-none text-sm"
             autoFocus
           />
-          <kbd className="px-2 py-0.5 text-xs bg-[#1A1A1E] border border-[#2A2A30] rounded text-gray-400">
+          <kbd className="px-2 py-0.5 text-xs bg-surface-3 border border-line-strong rounded text-ink-3">
             ESC
           </kbd>
         </div>
@@ -223,7 +211,7 @@ export function CommandPalette() {
         {/* Commands list */}
         <div className="max-h-[300px] overflow-y-auto p-2">
           {filteredCommands.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-ink-4">
               <p className="text-sm">No commands found</p>
             </div>
           ) : (
@@ -231,7 +219,7 @@ export function CommandPalette() {
               if (cmds.length === 0) return null
               return (
                 <div key={section} className="mb-2">
-                  <div className="px-2 py-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  <div className="px-2 py-1.5 text-xs font-medium text-ink-4 uppercase tracking-wide">
                     {sectionLabels[section]}
                   </div>
                   {cmds.map((cmd) => {
@@ -248,13 +236,13 @@ export function CommandPalette() {
                         className={cn(
                           'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-left transition-colors',
                           isSelected 
-                            ? 'bg-blue-500/20 text-white' 
-                            : 'text-gray-300 hover:bg-[#1A1A1E]'
+                            ? 'bg-blue-500/20 text-ink' 
+                            : 'text-ink-2 hover:bg-surface-3'
                         )}
                       >
                         <Icon className={cn(
                           'w-4 h-4',
-                          isSelected ? 'text-blue-400' : 'text-gray-400'
+                          isSelected ? 'text-blue-400' : 'text-ink-3'
                         )} />
                         <span className="flex-1 text-sm">{cmd.label}</span>
                         {cmd.shortcut && (
@@ -262,7 +250,7 @@ export function CommandPalette() {
                             'px-1.5 py-0.5 text-xs rounded',
                             isSelected 
                               ? 'bg-blue-500/30 text-blue-300' 
-                              : 'bg-[#1A1A1E] border border-[#2A2A30] text-gray-500'
+                              : 'bg-surface-3 border border-line-strong text-ink-4'
                           )}>
                             {cmd.shortcut}
                           </kbd>
@@ -277,17 +265,17 @@ export function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="px-4 py-2 border-t border-[#1F1F23] flex items-center justify-between text-xs text-gray-500">
+        <div className="px-4 py-2 border-t border-line flex items-center justify-between text-xs text-ink-4">
           <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 bg-[#1A1A1E] border border-[#2A2A30] rounded">↑↓</kbd>
+            <kbd className="px-1.5 py-0.5 bg-surface-3 border border-line-strong rounded">↑↓</kbd>
             <span>Navigate</span>
           </div>
           <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 bg-[#1A1A1E] border border-[#2A2A30] rounded">↵</kbd>
+            <kbd className="px-1.5 py-0.5 bg-surface-3 border border-line-strong rounded">↵</kbd>
             <span>Select</span>
           </div>
           <div className="flex items-center gap-2">
-            <kbd className="px-1.5 py-0.5 bg-[#1A1A1E] border border-[#2A2A30] rounded">⌘K</kbd>
+            <kbd className="px-1.5 py-0.5 bg-surface-3 border border-line-strong rounded">⌘K</kbd>
             <span>Toggle</span>
           </div>
         </div>

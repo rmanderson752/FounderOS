@@ -50,7 +50,7 @@ export function EditGoalModal({ goal, open, onClose }: EditGoalModalProps) {
     <Modal open={open} onClose={onClose} title="Edit Goal" size="md">
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label className="block text-sm font-medium text-ink-2 mb-1.5">
             Goal title
           </label>
           <Input
@@ -61,7 +61,7 @@ export function EditGoalModal({ goal, open, onClose }: EditGoalModalProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label className="block text-sm font-medium text-ink-2 mb-1.5">
             Description (optional)
           </label>
           <textarea
@@ -69,12 +69,12 @@ export function EditGoalModal({ goal, open, onClose }: EditGoalModalProps) {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add more details..."
             rows={3}
-            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
+            className="w-full bg-ink/15 border border-line rounded-lg px-3 py-2 text-ink placeholder:text-ink-4 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label className="block text-sm font-medium text-ink-2 mb-1.5">
             Deadline
           </label>
           <Input

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 // Mock data
 const mockPipeline = {
   stages: [
-    { id: 'cold', name: 'Cold', count: 12, color: 'bg-gray-500' },
+    { id: 'cold', name: 'Cold', count: 12, color: 'bg-ink-4' },
     { id: 'warm', name: 'Warm', count: 5, color: 'bg-amber-500' },
     { id: 'pitched', name: 'Pitched', count: 3, color: 'bg-orange-500' },
     { id: 'closing', name: 'Closing', count: 1, color: 'bg-green-500' },
@@ -48,7 +48,7 @@ export function PipelineSummary() {
         <CardTitle>Investor Pipeline</CardTitle>
         <Link
           href="/pipeline"
-          className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors"
+          className="flex items-center gap-1 text-sm text-ink-3 hover:text-ink transition-colors"
         >
           View Pipeline
           <ChevronRight className="w-4 h-4" />
@@ -60,10 +60,10 @@ export function PipelineSummary() {
         <div className="flex items-center justify-between">
           {pipeline.stages.map((stage) => (
             <div key={stage.id} className="text-center">
-              <p className="text-2xl font-semibold text-white">{stage.count}</p>
+              <p className="text-2xl font-semibold text-ink">{stage.count}</p>
               <div className="flex items-center justify-center gap-1.5 mt-1">
                 <div className={cn('w-2 h-2 rounded-full', stage.color)} />
-                <p className="text-xs text-gray-400">{stage.name}</p>
+                <p className="text-xs text-ink-3">{stage.name}</p>
               </div>
             </div>
           ))}
@@ -71,15 +71,15 @@ export function PipelineSummary() {
 
         {/* Next action */}
         {pipeline.nextAction && (
-          <div className="flex items-start gap-3 p-3 bg-background-hover rounded-lg">
+          <div className="flex items-start gap-3 p-3 bg-surface-3 rounded-lg">
             <Pin className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-white">
+              <p className="text-sm text-ink">
                 <span className="font-medium">{pipeline.nextAction.contact}</span>
-                <span className="text-gray-400"> at </span>
+                <span className="text-ink-3"> at </span>
                 <span className="font-medium">{pipeline.nextAction.company}</span>
               </p>
-              <p className="text-sm text-gray-400 truncate">{pipeline.nextAction.action}</p>
+              <p className="text-sm text-ink-3 truncate">{pipeline.nextAction.action}</p>
             </div>
             <Badge variant={pipeline.nextAction.daysUntil <= 1 ? 'warning' : 'neutral'}>
               {pipeline.nextAction.daysUntil === 0

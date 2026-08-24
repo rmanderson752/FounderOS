@@ -38,5 +38,5 @@ export {
 
 export { Confetti } from './Confetti'
 export { FocusMode } from './FocusMode'
-export { PageTransition } from './PageTransition'
+export { PageTransition, StaggerContainer, StaggerItem } from './PageTransition'
 export { AvatarSelector, getAvatarById, AVATARS } from './AvatarSelector'

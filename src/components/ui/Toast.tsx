@@ -1,8 +1,9 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback } from 'react'
-import { CheckCircle, AlertCircle, Info, X } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AnimatePresence, motion } from 'framer-motion'
 
 type ToastType = 'success' | 'error' | 'info'
 
@@ -26,8 +27,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const addToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = Date.now().toString()
     setToasts(prev => [...prev, { id, message, type }])
-    
-    // Auto remove after 4 seconds
+
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, 4000)
@@ -53,59 +53,70 @@ export function useToast() {
   return context
 }
 
-function ToastContainer({ 
-  toasts, 
-  removeToast 
-}: { 
+function ToastContainer({
+  toasts,
+  removeToast,
+}: {
   toasts: Toast[]
-  removeToast: (id: string) => void 
+  removeToast: (id: string) => void
 }) {
-  if (toasts.length === 0) return null
-
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-      {toasts.map(toast => (
-        <ToastItem 
-          key={toast.id} 
-          toast={toast} 
-          onClose={() => removeToast(toast.id)} 
-        />
-      ))}
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5">
+      <AnimatePresence mode="popLayout">
+        {toasts.map(toast => (
+          <ToastItem
+            key={toast.id}
+            toast={toast}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </AnimatePresence>
     </div>
   )
 }
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const icons = {
-    success: CheckCircle,
+    success: CheckCircle2,
     error: AlertCircle,
     info: Info,
   }
-  
-  const styles = {
-    success: 'bg-green-500/10 border-green-500/20 text-green-400',
-    error: 'bg-red-500/10 border-red-500/20 text-red-400',
-    info: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+
+  const iconChip = {
+    success: 'bg-emerald-50 text-emerald-600',
+    error: 'bg-red-50 text-red-600',
+    info: 'bg-sky-50 text-sky-600',
   }
 
   const Icon = icons[toast.type]
 
   return (
-    <div
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: 60, scale: 0.92 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 60, scale: 0.92 }}
+      transition={{ type: 'spring', damping: 22, stiffness: 320 }}
       className={cn(
-        'flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur-sm',
-        'animate-slide-in shadow-lg min-w-[300px] max-w-[400px]',
-        'bg-[#141417] border-[#2A2A30]'
+        'flex items-center gap-3 pl-3 pr-3 py-3 rounded-3xl border border-line',
+        'bg-white shadow-xl min-w-[300px] max-w-[400px]'
       )}
     >
-      <Icon className={cn('w-5 h-5 flex-shrink-0', styles[toast.type].split(' ').pop())} />
-      <p className="text-sm text-white flex-1">{toast.message}</p>
+      <div
+        className={cn(
+          'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0',
+          iconChip[toast.type]
+        )}
+      >
+        <Icon className="w-[18px] h-[18px]" strokeWidth={2.25} />
+      </div>
+      <p className="text-sm font-medium text-ink flex-1 leading-snug">{toast.message}</p>
       <button
         onClick={onClose}
-        className="text-gray-400 hover:text-white transition-colors"
+        className="text-ink-4 hover:text-ink transition-colors p-1.5 rounded-full hover:bg-surface-3 active:scale-90"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" strokeWidth={2.5} />
       </button>
-    </div>
+    </motion.div>
   )
 }

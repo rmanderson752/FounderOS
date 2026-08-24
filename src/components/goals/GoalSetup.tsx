@@ -44,15 +44,15 @@ export function GoalSetup({ onComplete, onCancel, existingGoal }: GoalSetupProps
               <Target className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-ink">
                 {existingGoal ? 'Edit Goal' : 'Set Your Goal'}
               </h2>
-              <p className="text-sm text-gray-400">Step {step} of 2</p>
+              <p className="text-sm text-ink-3">Step {step} of 2</p>
             </div>
           </div>
           <button
             onClick={onCancel}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-ink-3 hover:text-ink transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -60,15 +60,15 @@ export function GoalSetup({ onComplete, onCancel, existingGoal }: GoalSetupProps
 
         {/* Progress dots */}
         <div className="flex gap-2 mb-8">
-          <div className={`h-1 flex-1 rounded-full ${step >= 1 ? 'bg-blue-500' : 'bg-gray-700'}`} />
-          <div className={`h-1 flex-1 rounded-full ${step >= 2 ? 'bg-blue-500' : 'bg-gray-700'}`} />
+          <div className={`h-1 flex-1 rounded-full ${step >= 1 ? 'bg-blue-500' : 'bg-surface-3'}`} />
+          <div className={`h-1 flex-1 rounded-full ${step >= 2 ? 'bg-blue-500' : 'bg-surface-3'}`} />
         </div>
 
         {/* Step 1: Goal Title */}
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-2 mb-2">
                 What do you want to accomplish?
               </label>
               <Input
@@ -78,20 +78,20 @@ export function GoalSetup({ onComplete, onCancel, existingGoal }: GoalSetupProps
                 className="text-lg"
                 autoFocus
               />
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-ink-4">
                 Be specific. "Launch landing page" is better than "Work on website"
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-2 mb-2">
                 Description (optional)
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add any details or context..."
-                className="w-full bg-[#111113] border border-[#2A2A30] rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors min-h-[80px] resize-none"
+                className="w-full bg-canvas border border-line-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors min-h-[80px] resize-none"
               />
             </div>
 
@@ -111,11 +111,11 @@ export function GoalSetup({ onComplete, onCancel, existingGoal }: GoalSetupProps
         {step === 2 && (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-2 mb-2">
                 When do you want to complete this by?
               </label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-3" />
                 <Input
                   type="date"
                   value={deadline}
@@ -140,7 +140,7 @@ export function GoalSetup({ onComplete, onCancel, existingGoal }: GoalSetupProps
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                     deadline === format(addDays(new Date(), days), 'yyyy-MM-dd')
                       ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                      : 'border-[#2A2A30] text-gray-400 hover:border-gray-500'
+                      : 'border-line-strong text-ink-3 hover:border-line-strong'
                   }`}
                 >
                   {label}
@@ -149,10 +149,10 @@ export function GoalSetup({ onComplete, onCancel, existingGoal }: GoalSetupProps
             </div>
 
             {/* Summary */}
-            <div className="p-4 bg-[#111113] rounded-lg border border-[#1F1F23]">
-              <h3 className="font-medium text-white mb-2">Your goal:</h3>
-              <p className="text-gray-300">{title}</p>
-              <p className="text-sm text-gray-500 mt-1">
+            <div className="p-4 bg-canvas rounded-lg border border-line">
+              <h3 className="font-medium text-ink mb-2">Your goal:</h3>
+              <p className="text-ink-2">{title}</p>
+              <p className="text-sm text-ink-4 mt-1">
                 Due: {format(new Date(deadline), 'MMMM d, yyyy')}
               </p>
             </div>

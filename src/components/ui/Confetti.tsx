@@ -13,12 +13,12 @@ interface ConfettiProps {
 
 const PARTICLE_COUNT = 12
 const COLORS = [
-  '#60A5FA', // blue-400
-  '#3B82F6', // blue-500
-  '#C084FC', // purple-400
-  '#A855F7', // purple-500
-  '#4ADE80', // green-400
-  '#FBBF24', // amber-400
+  '#6C5CE7', // brand
+  '#8B7BF7', // brand light
+  '#FF7AB6', // bubblegum
+  '#2E90E5', // sky
+  '#12B76A', // mint
+  '#F5A524', // sunshine
 ]
 
 export function Confetti({ active, onComplete }: ConfettiProps) {
