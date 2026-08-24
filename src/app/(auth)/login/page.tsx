@@ -63,9 +63,18 @@ export default function LoginPage() {
     router.refresh()
   }
 
-  const handleGoogleLogin = () => {
-    window.location.href =
-      'https://botlicwjcsprmgjcvnus.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://founder-os-xi.vercel.app/login'
+  const handleGoogleLogin = async () => {
+    setError('')
+    const supabase = createClient()
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) setError(error.message)
   }
 
   return (
