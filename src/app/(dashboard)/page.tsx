@@ -1,75 +1,131 @@
 // src/app/(dashboard)/page.tsx
 // v3 morning view.
 //
-// Phase 0 placeholder: the shell, the date, and an honest account of what is
-// not wired up yet. Phase 1 replaces the body with today's timeline and the
-// computed free gaps; Phase 2 puts the agent conversation underneath it.
+// Phase 1: today's calendar and the real free gaps, computed on the server.
+// Phase 2 puts the planning conversation underneath this timeline.
 
 'use client'
 
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { CalendarClock, Plug } from 'lucide-react'
-import { PageTransition } from '@/components/ui'
+import { CalendarClock, CalendarX2, Coffee } from 'lucide-react'
+import { PageTransition, Skeleton } from '@/components/ui'
+import { DayTimeline, formatDuration } from '@/components/day'
+import { useDayCalendar } from '@/hooks/useDayCalendar'
 import { useUser } from '@/hooks/useUser'
 
 export default function MorningPage() {
   const { data: user } = useUser()
-  const now = new Date()
+  const { data, isLoading, isError } = useDayCalendar()
+
   const firstName = user?.name?.split(' ')[0]
+  const day = data?.day
 
   return (
     <PageTransition>
       <div className="max-w-2xl">
         <p className="text-sm font-semibold text-ink-4 uppercase tracking-wider mb-2">
-          {format(now, 'EEEE, d MMMM')}
+          {format(new Date(), 'EEEE, d MMMM')}
         </p>
         <h1 className="text-4xl font-bold text-ink tracking-tight mb-3">
           {firstName ? `Morning, ${firstName}.` : 'Good morning.'}
         </h1>
-        <p className="text-[17px] text-ink-3 leading-relaxed mb-8">
-          One question, one sentence, and your day gets written into the gaps
-          your calendar actually leaves open.
-        </p>
 
-        <div className="bg-white border border-line rounded-3xl shadow-sm p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center flex-shrink-0">
-              <CalendarClock className="w-5 h-5" strokeWidth={2} />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-[17px] font-semibold text-ink mb-1.5">
-                Not wired up yet
-              </h2>
-              <p className="text-sm text-ink-3 leading-relaxed mb-4">
-                Calendar reading and gap computation land in Phase 1, and the
-                planning conversation in Phase 2. Until then this page is
-                scaffolding — it deliberately shows nothing rather than
-                inventing a plan.
-              </p>
-              <Link
-                href="/settings"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500 hover:text-brand-600 transition-colors"
-              >
-                <Plug className="w-4 h-4" strokeWidth={2.25} />
-                Calendar settings
-              </Link>
-            </div>
+        {isLoading && (
+          <div className="mt-8 space-y-3">
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="h-[420px] w-full rounded-2xl" />
           </div>
-        </div>
+        )}
 
-        <p className="text-[13px] text-ink-4 mt-6 leading-relaxed">
-          The v2 dashboard is still here at{' '}
-          <Link
-            href="/legacy"
-            className="font-semibold text-ink-3 hover:text-ink underline underline-offset-2 transition-colors"
-          >
-            /legacy
-          </Link>
-          , along with /week, /projects, /review and /metrics. Nothing was
-          deleted — they are just off the daily path.
-        </p>
+        {isError && (
+          <Notice
+            icon={CalendarX2}
+            title="Could not read your calendar"
+            body="The connection may have expired or been revoked. Reconnecting usually fixes it."
+            href="/api/calendar/connect"
+            cta="Reconnect Google Calendar"
+          />
+        )}
+
+        {!isLoading && !isError && data && !data.connected && (
+          <Notice
+            icon={CalendarClock}
+            title="Connect your calendar"
+            body="Founder OS reads your day to find the gaps that are genuinely free, then plans into them. Read-only — it never writes to your calendar."
+            href="/api/calendar/connect"
+            cta="Connect Google Calendar"
+          />
+        )}
+
+        {!isLoading && data?.connected && data.available === false && (
+          <Notice
+            icon={Coffee}
+            title="Today is marked unavailable"
+            body="This weekday is switched off in your schedule, so there is nothing to plan. Change it in settings if that is wrong."
+            href="/settings"
+            cta="Work schedule"
+          />
+        )}
+
+        {day && data?.available !== false && (
+          <>
+            <p className="text-[17px] text-ink-3 leading-relaxed mb-8">
+              {day.gaps.length === 0 ? (
+                <>Your calendar is full today. Nothing to plan into.</>
+              ) : (
+                <>
+                  <span className="font-semibold text-ink">
+                    {formatDuration(day.freeMinutes)} free
+                  </span>{' '}
+                  across {day.gaps.length}{' '}
+                  {day.gaps.length === 1 ? 'gap' : 'gaps'}.
+                </>
+              )}
+            </p>
+            <DayTimeline day={day} />
+            <p className="text-[13px] text-ink-4 mt-6 leading-relaxed">
+              Gaps are what is left after your events, inside your work window,
+              ignoring anything marked free. The planning conversation lands in
+              Phase 2.
+            </p>
+          </>
+        )}
       </div>
     </PageTransition>
+  )
+}
+
+function Notice({
+  icon: Icon,
+  title,
+  body,
+  href,
+  cta,
+}: {
+  icon: typeof CalendarClock
+  title: string
+  body: string
+  href: string
+  cta: string
+}) {
+  return (
+    <div className="bg-white border border-line rounded-3xl shadow-sm p-6 mt-8">
+      <div className="flex items-start gap-4">
+        <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center flex-shrink-0">
+          <Icon className="w-5 h-5" strokeWidth={2} />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-[17px] font-semibold text-ink mb-1.5">{title}</h2>
+          <p className="text-sm text-ink-3 leading-relaxed mb-4">{body}</p>
+          <Link
+            href={href}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500 hover:text-brand-600 transition-colors"
+          >
+            {cta}
+          </Link>
+        </div>
+      </div>
+    </div>
   )
 }
