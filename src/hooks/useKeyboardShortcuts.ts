@@ -35,16 +35,6 @@ export function useKeyboardShortcuts(actions?: ShortcutActions) {
         e.preventDefault()
         router.push('/')
         break
-      case 'w':
-      case 'W':
-        e.preventDefault()
-        router.push('/week')
-        break
-      case 'p':
-      case 'P':
-        e.preventDefault()
-        router.push('/progress')
-        break
       case 's':
       case 'S':
         e.preventDefault()

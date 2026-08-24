@@ -10,22 +10,12 @@ import { cn } from '@/lib/utils'
 
 const SHORTCUTS = [
   { key: 'T', description: 'Go to Today' },
-  { key: 'W', description: 'Go to Week view' },
-  { key: 'P', description: 'Go to Progress' },
   { key: 'S', description: 'Go to Settings' },
   { key: 'N', description: 'New task' },
   { key: 'G', description: 'New goal' },
   { key: '?', description: 'Show shortcuts' },
   { key: 'Esc', description: 'Close modal' },
   { key: '⌘K', description: 'Open command palette' },
-  { key: 'T', description: 'Go to Today' },
-  { key: 'W', description: 'Go to Week view' },
-  { key: 'P', description: 'Go to Progress' },
-  { key: 'S', description: 'Go to Settings' },
-  { key: 'N', description: 'New task' },
-  { key: 'G', description: 'New goal' },
-  { key: '?', description: 'Show shortcuts' },
-  { key: 'Esc', description: 'Close modal' },
 ]
 
 export function ShortcutsModal() {

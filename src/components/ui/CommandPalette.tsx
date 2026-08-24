@@ -9,8 +9,6 @@ import { useRouter } from 'next/navigation'
 import {
   Search,
   LayoutDashboard,
-  Calendar,
-  TrendingUp,
   Settings,
   Plus,
   Target,
@@ -34,29 +32,14 @@ export function CommandPalette() {
   const router = useRouter()
 
   const commands: Command[] = useMemo(() => [
-    // Navigation
+    // Navigation — v3 daily path only; /week and /progress are off the
+    // daily path and reachable by direct URL (see the v3 brief, section 2).
     { 
       id: 'today', 
       label: 'Go to Today', 
       icon: LayoutDashboard, 
       shortcut: 'T',
       action: () => router.push('/'),
-      section: 'navigation',
-    },
-    { 
-      id: 'week', 
-      label: 'Go to Week', 
-      icon: Calendar, 
-      shortcut: 'W',
-      action: () => router.push('/week'),
-      section: 'navigation',
-    },
-    { 
-      id: 'progress', 
-      label: 'Go to Progress', 
-      icon: TrendingUp, 
-      shortcut: 'P',
-      action: () => router.push('/progress'),
       section: 'navigation',
     },
     { 

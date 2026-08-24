@@ -11,12 +11,8 @@ import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/ui'
 import {
   LayoutDashboard,
-  Calendar,
-  BarChart3,
   Settings,
   LogOut,
-  FolderOpen,
-  ClipboardCheck,
   Bot,
   ChevronLeft,
   ChevronRight,
@@ -31,12 +27,11 @@ import { useUser } from '@/hooks/useUser'
 import { AgentChat } from '@/components/agent'
 import { AnimatePresence, motion } from 'framer-motion'
 
+// v3 daily path. /week, /projects, /review, /metrics and /legacy still
+// compile and load by direct URL — they are removed from navigation, not
+// deleted. See FOUNDER_OS_V3_AGENT_BRIEF.md section 2.
 const navigation = [
   { name: 'Today', href: '/', icon: LayoutDashboard },
-  { name: 'Week', href: '/week', icon: Calendar },
-  { name: 'Projects', href: '/projects', icon: FolderOpen },
-  { name: 'Review', href: '/review', icon: ClipboardCheck },
-  { name: 'Metrics', href: '/metrics', icon: BarChart3 },
 ]
 
 const secondaryNav = [
