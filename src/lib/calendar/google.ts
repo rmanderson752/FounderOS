@@ -37,10 +37,14 @@ function requireEnv(name: string): string {
 }
 
 function redirectUri(origin: string): string {
-  // GOOGLE_REDIRECT_URI wins when set, so production can pin an exact URI that
-  // matches the Google console entry. Otherwise derive it from the request,
-  // which keeps localhost and preview deployments working.
-  return process.env.GOOGLE_REDIRECT_URI || `${origin}/api/calendar/callback`
+  // Deliberately NOT GOOGLE_REDIRECT_URI: that variable belongs to the v2
+  // flow and points at /api/google/callback. Sharing it would send the v3
+  // consent screen back into the v2 handler.
+  //
+  // Derived from the request by default, so localhost and preview
+  // deployments work without configuration. Set the override only to pin an
+  // exact URI in production.
+  return process.env.GOOGLE_CALENDAR_REDIRECT_URI || `${origin}/api/calendar/callback`
 }
 
 export function oauthClient(origin: string): OAuth2Client {
