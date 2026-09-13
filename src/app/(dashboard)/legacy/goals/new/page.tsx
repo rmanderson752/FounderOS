@@ -1,4 +1,4 @@
-// src/app/(dashboard)/goals/new/page.tsx
+// src/app/(dashboard)/legacy/goals/new/page.tsx (v1 goals; unlinked, kept per D7)
 // Create new goal page
 
 'use client'

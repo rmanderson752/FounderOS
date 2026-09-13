@@ -1,4 +1,4 @@
-// src/app/(dashboard)/goals/page.tsx
+// src/app/(dashboard)/legacy/goals/page.tsx (v1 goals; unlinked, kept per D7)
 // Goals management page - view, edit, complete, delete goals
 
 'use client'
@@ -71,7 +71,7 @@ export default function GoalsPage() {
           <h1 className="text-2xl font-bold text-ink">Goals</h1>
           <p className="text-ink-3 mt-1">Manage your goals and track progress</p>
         </div>
-        <Link href="/goals/new">
+        <Link href="/legacy/goals/new">
           <Button>
             <Plus className="w-4 h-4 mr-2" />
             New Goal
@@ -88,7 +88,7 @@ export default function GoalsPage() {
             description="Set your first goal to start tracking progress and staying focused."
             action={{
               label: 'Create Goal',
-              onClick: () => window.location.href = '/goals/new',
+              onClick: () => window.location.href = '/legacy/goals/new',
             }}
           />
         </Card>

@@ -135,7 +135,7 @@ export function GoalSwitcher() {
           <Menu.Item>
             {({ active }) => (
               <Link
-                href="/goals"
+                href="/legacy/goals"
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                   active ? 'bg-ink/[0.06]' : ''
@@ -150,7 +150,7 @@ export function GoalSwitcher() {
           <Menu.Item>
             {({ active }) => (
               <Link
-                href="/goals/new"
+                href="/legacy/goals/new"
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                   active ? 'bg-ink/[0.06]' : ''

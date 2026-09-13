@@ -10,6 +10,8 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/ui'
 import {
+  Activity,
+  Flag,
   LayoutDashboard,
   Settings,
   LogOut,
@@ -27,11 +29,13 @@ import { useUser } from '@/hooks/useUser'
 import { AgentChat } from '@/components/agent'
 import { AnimatePresence, motion } from 'framer-motion'
 
-// v3 daily path. /week, /projects, /review, /metrics and /legacy still
-// compile and load by direct URL — they are removed from navigation, not
-// deleted. See FOUNDER_OS_V3_AGENT_BRIEF.md section 2.
+// v4: the card, the goals behind it, and the signals it was built from.
+// /week, /projects, /review, /metrics, /legacy and /legacy/goals still compile
+// and load by direct URL — removed from navigation, not deleted (DECISIONS D7).
 const navigation = [
   { name: 'Today', href: '/', icon: LayoutDashboard },
+  { name: 'Goals', href: '/goals', icon: Flag },
+  { name: 'Signals', href: '/signals', icon: Activity },
 ]
 
 const secondaryNav = [
