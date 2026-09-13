@@ -12,8 +12,17 @@
 import { google } from 'googleapis'
 import type { OAuth2Client } from 'google-auth-library'
 import { createClient } from '@/lib/supabase/server'
+import type { Db } from '@/lib/supabase/types'
 import { decryptToken, encryptToken } from './crypto'
 import type { CalendarEvent } from './types'
+
+/**
+ * Callers that have no request cookies (the CLI bearer path, the daily cron)
+ * pass their own client; everything else falls back to the cookie session.
+ */
+async function db(provided?: Db): Promise<Db> {
+  return provided ?? ((await createClient()) as unknown as Db)
+}
 
 /** Read-only. Do not widen without revisiting the v3 brief, section 5. */
 export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
@@ -103,8 +112,9 @@ export async function saveConnection(input: {
   tokens: ExchangedTokens
   calendarIds: string[]
   timezone: string
+  supabase?: Db
 }): Promise<void> {
-  const supabase = await createClient()
+  const supabase = await db(input.supabase)
 
   const { error } = await supabase.from('calendar_connections').upsert(
     {
@@ -124,8 +134,8 @@ export async function saveConnection(input: {
 }
 
 /** The stored connection with tokens decrypted, or null if not connected. */
-export async function getConnection(userId: string): Promise<CalendarConnection | null> {
-  const supabase = await createClient()
+export async function getConnection(userId: string, provided?: Db): Promise<CalendarConnection | null> {
+  const supabase = await db(provided)
 
   const { data, error } = await supabase
     .from('calendar_connections')
@@ -154,7 +164,8 @@ export async function getConnection(userId: string): Promise<CalendarConnection 
  */
 export async function freshAccessToken(
   connection: CalendarConnection,
-  origin: string
+  origin: string,
+  provided?: Db
 ): Promise<string> {
   if (connection.expiresAt.getTime() - REFRESH_MARGIN_MS > Date.now()) {
     return connection.accessToken
@@ -167,7 +178,7 @@ export async function freshAccessToken(
   if (!credentials.access_token) throw new Error('Google refresh returned no access token')
 
   const expiresAt = new Date(credentials.expiry_date ?? Date.now() + 3600 * 1000)
-  const supabase = await createClient()
+  const supabase = await db(provided)
 
   const update: Record<string, string> = {
     access_token: encryptToken(credentials.access_token),

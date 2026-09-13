@@ -14,7 +14,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 import { CalendarConnection } from '@/components/settings/CalendarConnection'
-import { AgentSettings } from '@/components/agent'
+import { HookTokenCard } from '@/components/settings/HookTokenCard'
+import { WorkWindowCard } from '@/components/settings/WorkWindowCard'
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sun' },
@@ -33,7 +34,7 @@ function CalendarRedirectHandler() {
   const { addToast } = useToast()
 
   useEffect(() => {
-    const gcal = searchParams.get('gcal')
+    const gcal = searchParams.get('gcal') ?? searchParams.get('calendar')
     if (gcal === 'connected') {
       addToast('Google Calendar connected!', 'success')
       router.replace('/settings')
@@ -258,11 +259,14 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* Google Calendar */}
+      {/* Google Calendar (v3 read-only stack) */}
       <CalendarConnection />
 
-      {/* AI Assistant */}
-      <AgentSettings />
+      {/* Work window for gap math */}
+      <WorkWindowCard />
+
+      {/* CLI + hooks token */}
+      <HookTokenCard />
 
       {/* Current Goal */}
       {goal && (

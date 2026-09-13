@@ -1,3 +1,6 @@
+/** plan_blocks.status. 'unobserved' means no evidence arrived; it is never 'skipped' by default. */
+export type BlockStatus = 'planned' | 'done' | 'partial' | 'skipped' | 'unobserved'
+
 export type Json =
   | string
   | number
@@ -21,6 +24,11 @@ export interface Database {
           review_day: number
           created_at: string
           updated_at: string
+          // v4 (migration 005)
+          /** SHA-256 of the CLI/hook bearer token. Plaintext is never stored. */
+          hook_token_hash: string | null
+          /** IANA zone. Falls back to the calendar connection's zone, then America/New_York. */
+          timezone: string | null
         }
         Insert: {
           id: string
@@ -33,6 +41,8 @@ export interface Database {
           review_day?: number
           created_at?: string
           updated_at?: string
+          hook_token_hash?: string | null
+          timezone?: string | null
         }
         Update: {
           id?: string
@@ -45,6 +55,8 @@ export interface Database {
           review_day?: number
           created_at?: string
           updated_at?: string
+          hook_token_hash?: string | null
+          timezone?: string | null
         }
       }
       goals: {
@@ -90,6 +102,13 @@ export interface Database {
           status: 'active' | 'paused' | 'completed'
           created_at: string
           updated_at: string
+          // v4 (migration 005)
+          /** Absolute path of the git repo on the user's machine, for signal attribution. */
+          repo_path: string | null
+          folder_paths: string[]
+          kind: 'code' | 'docs' | 'life'
+          weight: number
+          paused: boolean
         }
         Insert: {
           id?: string
@@ -101,6 +120,11 @@ export interface Database {
           status?: 'active' | 'paused' | 'completed'
           created_at?: string
           updated_at?: string
+          repo_path?: string | null
+          folder_paths?: string[]
+          kind?: 'code' | 'docs' | 'life'
+          weight?: number
+          paused?: boolean
         }
         Update: {
           id?: string
@@ -112,6 +136,11 @@ export interface Database {
           status?: 'active' | 'paused' | 'completed'
           created_at?: string
           updated_at?: string
+          repo_path?: string | null
+          folder_paths?: string[]
+          kind?: 'code' | 'docs' | 'life'
+          weight?: number
+          paused?: boolean
         }
       }
       tasks: {
@@ -523,6 +552,11 @@ export interface Database {
           status: 'active' | 'paused' | 'done' | 'abandoned'
           created_at: string
           updated_at: string
+          // v4 (migration 005)
+          /** 1–3. The only prioritisation input the user ever sets. */
+          weight: number
+          decomposition_version: number
+          assumptions: string[]
         }
         Insert: {
           id?: string
@@ -532,6 +566,9 @@ export interface Database {
           definition_of_done?: string | null
           target_date?: string | null
           status?: 'active' | 'paused' | 'done' | 'abandoned'
+          weight?: number
+          decomposition_version?: number
+          assumptions?: string[]
         }
         Update: {
           project_id?: string | null
@@ -539,6 +576,9 @@ export interface Database {
           definition_of_done?: string | null
           target_date?: string | null
           status?: 'active' | 'paused' | 'done' | 'abandoned'
+          weight?: number
+          decomposition_version?: number
+          assumptions?: string[]
         }
       }
       daily_plans: {
@@ -589,9 +629,18 @@ export interface Database {
           starts_at: string
           ends_at: string
           position: number
-          status: 'planned' | 'done' | 'partial' | 'skipped'
+          status: BlockStatus
           resolved_at: string | null
           created_at: string
+          // v4 (migration 005)
+          milestone_id: string | null
+          expected_paths: string[]
+          resolved_by: 'observed' | 'user' | 'cron' | null
+          confidence: number | null
+          evidence_signal_ids: string[]
+          /** The selection terms that chose this outcome, so the card can explain itself. */
+          selection: Json
+          start_command: string | null
         }
         Insert: {
           id?: string
@@ -604,8 +653,15 @@ export interface Database {
           starts_at: string
           ends_at: string
           position?: number
-          status?: 'planned' | 'done' | 'partial' | 'skipped'
+          status?: BlockStatus
           resolved_at?: string | null
+          milestone_id?: string | null
+          expected_paths?: string[]
+          resolved_by?: 'observed' | 'user' | 'cron' | null
+          confidence?: number | null
+          evidence_signal_ids?: string[]
+          selection?: Json
+          start_command?: string | null
         }
         Update: {
           outcome_id?: string | null
@@ -615,8 +671,15 @@ export interface Database {
           starts_at?: string
           ends_at?: string
           position?: number
-          status?: 'planned' | 'done' | 'partial' | 'skipped'
+          status?: BlockStatus
           resolved_at?: string | null
+          milestone_id?: string | null
+          expected_paths?: string[]
+          resolved_by?: 'observed' | 'user' | 'cron' | null
+          confidence?: number | null
+          evidence_signal_ids?: string[]
+          selection?: Json
+          start_command?: string | null
         }
       }
       agent_messages: {
@@ -650,6 +713,9 @@ export interface Database {
           turns: number
           input_tokens: number
           output_tokens: number
+          cache_read_tokens: number
+          cache_write_tokens: number
+          usd: number
         }
         Insert: {
           id?: string
@@ -658,11 +724,17 @@ export interface Database {
           turns?: number
           input_tokens?: number
           output_tokens?: number
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          usd?: number
         }
         Update: {
           turns?: number
           input_tokens?: number
           output_tokens?: number
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          usd?: number
         }
       }
       session_events: {
@@ -673,6 +745,9 @@ export interface Database {
           event_date: string
           metadata: Json
           created_at: string
+          trace_id: string | null
+          usd: number | null
+          latency_ms: number | null
         }
         Insert: {
           id?: string
@@ -680,9 +755,123 @@ export interface Database {
           event: string
           event_date: string
           metadata?: Json
+          trace_id?: string | null
+          usd?: number | null
+          latency_ms?: number | null
         }
         Update: {
           metadata?: Json
+        }
+      }
+      // ---------------------------------------------------------------
+      // v4 — the Start Card (migration 005)
+      // ---------------------------------------------------------------
+      milestones: {
+        Row: {
+          id: string
+          user_id: string
+          outcome_id: string
+          title: string
+          definition_of_done: string | null
+          estimated_minutes: number
+          position: number
+          status: 'pending' | 'active' | 'done' | 'skipped'
+          expected_by: string | null
+          focus_week: string | null
+          /** [{ deliverable, estimated_minutes, expected_paths }] */
+          candidates: Json
+          /** Commit hashes / notes showing this was done before the goal was stated. */
+          already_done_evidence: Json
+          created_by: 'model' | 'user'
+          decomposition_version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          outcome_id: string
+          title: string
+          definition_of_done?: string | null
+          estimated_minutes?: number
+          position?: number
+          status?: 'pending' | 'active' | 'done' | 'skipped'
+          expected_by?: string | null
+          focus_week?: string | null
+          candidates?: Json
+          already_done_evidence?: Json
+          created_by?: 'model' | 'user'
+          decomposition_version?: number
+        }
+        Update: {
+          title?: string
+          definition_of_done?: string | null
+          estimated_minutes?: number
+          position?: number
+          status?: 'pending' | 'active' | 'done' | 'skipped'
+          expected_by?: string | null
+          focus_week?: string | null
+          candidates?: Json
+          already_done_evidence?: Json
+          decomposition_version?: number
+        }
+      }
+      signals: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string | null
+          source: 'git' | 'session' | 'fs' | 'manual' | 'deploy'
+          kind: string
+          summary: string
+          paths: string[]
+          occurred_at: string
+          duration_minutes: number | null
+          external_id: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id?: string | null
+          source: 'git' | 'session' | 'fs' | 'manual' | 'deploy'
+          kind: string
+          summary?: string
+          paths?: string[]
+          occurred_at: string
+          duration_minutes?: number | null
+          external_id?: string | null
+          metadata?: Json
+        }
+        Update: {
+          project_id?: string | null
+          summary?: string
+          metadata?: Json
+        }
+      }
+      resolution_corrections: {
+        Row: {
+          id: string
+          user_id: string
+          block_id: string
+          from_status: string
+          to_status: string
+          from_confidence: number | null
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          block_id: string
+          from_status: string
+          to_status: string
+          from_confidence?: number | null
+          note?: string | null
+        }
+        Update: {
+          note?: string | null
         }
       }
     }
@@ -713,3 +902,8 @@ export type PlanBlock = Database['public']['Tables']['plan_blocks']['Row']
 export type AgentMessage = Database['public']['Tables']['agent_messages']['Row']
 export type AgentUsage = Database['public']['Tables']['agent_usage']['Row']
 export type SessionEvent = Database['public']['Tables']['session_events']['Row']
+
+// v4 convenience types
+export type Milestone = Database['public']['Tables']['milestones']['Row']
+export type Signal = Database['public']['Tables']['signals']['Row']
+export type ResolutionCorrection = Database['public']['Tables']['resolution_corrections']['Row']
