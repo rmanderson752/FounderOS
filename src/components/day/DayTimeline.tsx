@@ -1,7 +1,9 @@
 // src/components/day/DayTimeline.tsx
 //
-// The day as a vertical strip: calendar events in grey, free gaps highlighted.
-// Phase 1 renders it read-only; Phase 2 drops proposed blocks into the gaps.
+// The day as a vertical strip: calendar events in grey, free gaps highlighted,
+// and the Start Card's block drawn inside the gap it was sized to. A block
+// only ever appears here after lib/planner/validate accepted it, so by
+// construction it never overlaps an event.
 
 'use client'
 
@@ -38,12 +40,19 @@ export function formatDuration(minutes: number): string {
   return `${hours}h ${rest}m`
 }
 
+export interface TimelineBlock extends TimeInterval {
+  id: string
+  deliverable: string
+  status: string
+}
+
 interface DayTimelineProps {
   day: DayCalendar
+  blocks?: TimelineBlock[]
   className?: string
 }
 
-export function DayTimeline({ day, className }: DayTimelineProps) {
+export function DayTimeline({ day, blocks = [], className }: DayTimelineProps) {
   const { workWindow, timeZone } = day
   const windowMinutes = minutesBetween(workWindow.start, workWindow.end)
   if (windowMinutes <= 0) return null
@@ -141,6 +150,45 @@ export function DayTimeline({ day, className }: DayTimelineProps) {
                       {formatInTimeZone(gap.start, timeZone, 'HH:mm')}
                     </span>
                   </p>
+                )}
+              </div>
+            )
+          })}
+
+          {/* The Start Card's blocks: validated against the same gaps, so
+              they sit inside them. Status changes the colour, never the shape. */}
+          {blocks.map((block) => {
+            const clamped = {
+              start: new Date(Math.max(block.start.getTime(), workWindow.start.getTime())),
+              end: new Date(Math.min(block.end.getTime(), workWindow.end.getTime())),
+            }
+            if (clamped.end <= clamped.start) return null
+            const minutes = minutesBetween(clamped.start, clamped.end)
+            const compact = minutes < COMPACT_MINUTES
+            const tone =
+              block.status === 'done'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : block.status === 'partial'
+                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                  : block.status === 'planned'
+                    ? 'bg-brand-500 border-brand-600 text-white shadow-sm'
+                    : 'bg-surface-2 border-line-strong text-ink-3'
+            return (
+              <div
+                key={block.id}
+                title={`${block.deliverable} · ${clockRange(block, timeZone)}`}
+                className={cn(
+                  'absolute left-2 right-2 rounded-xl overflow-hidden border',
+                  compact ? 'px-2.5 py-0.5 flex items-center' : 'px-3 py-2',
+                  tone
+                )}
+                style={{ top: offsetPx(clamped.start), height: Math.max(heightPx(clamped), MIN_BLOCK_PX) }}
+              >
+                <p className={cn('font-semibold leading-tight', compact ? 'text-[11px] truncate' : 'text-[13px] line-clamp-2')}>
+                  {block.deliverable}
+                </p>
+                {!compact && minutes >= MIN_LABEL_MINUTES && (
+                  <p className="text-[11px] opacity-80 tabular-nums">{clockRange(block, timeZone)}</p>
                 )}
               </div>
             )
