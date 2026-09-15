@@ -571,6 +571,42 @@ async function cmdLadder(positional) {
   }
 }
 
+async function cmdWeek() {
+  const config = requireConfig()
+  const week = await api(config, '/api/week')
+  const tz = week.timeZone
+  const clock = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz })
+  process.stdout.write(`Week of ${week.weekStart}${week.connected ? '' : '  (no calendar connected; work window counts as free)'}\n`)
+  const byDate = {}
+  for (const b of week.blocks) (byDate[b.date] ??= []).push(b)
+  for (const day of week.calendar ?? []) {
+    const blocks = (byDate[day.date] ?? []).sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+    const label = new Date(day.date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+    process.stdout.write(`${day.isToday ? '▶' : ' '} ${label}${day.isPast ? '  (past)' : ''}\n`)
+    for (const b of blocks) {
+      const mark = b.status === 'done' ? '✓' : b.status === 'planned' ? '·' : '–'
+      process.stdout.write(`    ${mark} ${clock(b.starts_at)}–${clock(b.ends_at)}  [${b.kind}${b.locked ? ', locked' : ''}] ${b.title}\n`)
+    }
+  }
+  for (const n of week.notes ?? []) process.stdout.write(`  note: ${n}\n`)
+}
+
+async function cmdPlan() {
+  const config = requireConfig()
+  const week = await api(config, '/api/week/plan', { method: 'POST', body: {} })
+  process.stdout.write(`Planned ${week.blocks.length} blocks.\n`)
+  for (const n of week.notes ?? []) process.stdout.write(`  note: ${n}\n`)
+  await cmdWeek()
+}
+
+async function cmdTell(positional) {
+  const config = requireConfig()
+  const message = positional.join(' ').trim()
+  if (!message) fail('usage: fos tell "push outreach to Thursday at 2"')
+  const result = await api(config, '/api/week/chat', { method: 'POST', body: { message } })
+  process.stdout.write(`${result.reply}\n`)
+}
+
 async function cmdDoctor() {
   const config = loadConfig()
   const out = []
@@ -612,6 +648,9 @@ function usage() {
   fos milestone done                     advance the ladder now
   fos pause <project> | resume <project>
   fos ladder [goal id]                   show the ladder(s)
+  fos week                               this week's blocks
+  fos plan                               re-plan the provisional part of the week
+  fos tell "…"                           tell the planner ("push outreach to Thursday at 2")
   fos doctor                             check config, api, hooks, queue
 `)
 }
@@ -636,6 +675,9 @@ async function main() {
     case 'pause': return cmdPause(positional, true)
     case 'resume': return cmdPause(positional, false)
     case 'ladder': return cmdLadder(positional)
+    case 'week': return cmdWeek()
+    case 'plan': return cmdPlan()
+    case 'tell': return cmdTell(positional)
     case 'doctor': return cmdDoctor()
     default: return usage()
   }

@@ -18,6 +18,9 @@ export function createAdminClient(): Db {
   if (!admin) {
     admin = createSupabaseClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
+      // Next.js patches global fetch with a data cache; PostgREST reads are
+      // plain GETs with stable URLs and would be served stale. Never cache.
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
     })
   }
   return admin

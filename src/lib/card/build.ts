@@ -13,6 +13,7 @@ import type { Db } from '@/lib/supabase/types'
 import { getConnection } from '@/lib/calendar/google'
 import { buildDayCalendar, todayIn } from '@/lib/calendar/day'
 import { currentWindow } from '@/lib/planner/window'
+import { subtractIntervals } from '@/lib/planner/week'
 import { disagreementLine, scoreOutcomes, type ScoredOutcome } from '@/lib/planner/select'
 import { observedPace, paceLine, remainingMinutes } from '@/lib/planner/capacity'
 import type { Candidate, CardWindow, PlannerMilestone, PlannerOutcome, PlannerSignal } from '@/lib/planner/types'
@@ -61,6 +62,7 @@ export type BuildResult =
       source: 'model' | 'fallback' | 'existing'
       disagreement: string | null
       ranked: { outcomeId: string; title: string; score: number }[]
+      calendarConnected: boolean
     }
 
 interface ProjectRow {
@@ -118,6 +120,8 @@ interface BlockRow {
   start_command: string | null
   expected_paths: string[] | null
   resolved_by: string | null
+  kind: string | null
+  locked: boolean | null
 }
 
 /** Monday of the week containing `date` (yyyy-MM-dd), zone-free. */
@@ -183,17 +187,33 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
   const now = input.now ?? new Date()
 
   const connection = await getConnection(userId, supabase)
-  if (!connection) return { status: 'no_calendar' }
-
   const { available, day } = await buildDayCalendar({ supabase, userId, connection, origin, now })
   if (!available) return { status: 'unavailable', day }
-
-  const window = currentWindow({ now, gaps: day.gaps })
-  if (!window) return { status: 'no_window', day }
 
   const timeZone = day.timeZone
   const today = todayIn(timeZone, now)
   const weekStart = weekStartOf(today)
+
+  // Today's blocks first: commitments (habits, fixed, chores, flexible) are
+  // subtracted from the gaps before the window is sized, and a planned goal
+  // block already covering now is reused rather than regenerated.
+  const dayStart = new Date(`${today}T00:00:00Z`).getTime() - 36 * 3600 * 1000
+  const { data: recentBlocks } = await supabase
+    .from('plan_blocks')
+    .select(
+      'id, outcome_id, project_id, milestone_id, deliverable, rationale, starts_at, ends_at, status, confidence, evidence_signal_ids, start_command, expected_paths, resolved_by, kind, locked'
+    )
+    .eq('user_id', userId)
+    .gte('starts_at', new Date(dayStart).toISOString())
+    .order('starts_at', { ascending: false })
+    .limit(40)
+  const blocks = (recentBlocks ?? []) as BlockRow[]
+
+  const todayNonGoal = blocks
+    .filter((b) => b.status === 'planned' && (b.kind ?? 'goal') !== 'goal' && new Date(b.ends_at) > now)
+    .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }))
+  const window = currentWindow({ now, gaps: subtractIntervals(day.gaps, todayNonGoal) })
+  if (!window) return { status: 'no_window', day }
 
   // ---- load state -------------------------------------------------------
   const since = new Date(now.getTime() - 28 * 86_400_000).toISOString()
@@ -285,27 +305,15 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
         })
       : null
 
-  // ---- previous block on this outcome (today or yesterday) ---------------
-  const dayStart = new Date(`${today}T00:00:00Z`).getTime() - 36 * 3600 * 1000
-  const { data: recentBlocks } = await supabase
-    .from('plan_blocks')
-    .select(
-      'id, outcome_id, project_id, milestone_id, deliverable, rationale, starts_at, ends_at, status, confidence, evidence_signal_ids, start_command, expected_paths, resolved_by'
-    )
-    .eq('user_id', userId)
-    .gte('starts_at', new Date(dayStart).toISOString())
-    .order('starts_at', { ascending: false })
-    .limit(20)
-  const blocks = (recentBlocks ?? []) as BlockRow[]
-
-  // A block already covering this window is reused rather than regenerated.
+  // A goal block already covering this window is reused rather than
+  // regenerated — it came from candidates accepted in the goal conversation.
   const existing = input.userNote
     ? null
     : blocks.find((b) => {
         const s = new Date(b.starts_at).getTime()
         const e = new Date(b.ends_at).getTime()
         const overlaps = s < window.end.getTime() && e > window.start.getTime()
-        return overlaps && b.status === 'planned'
+        return overlaps && b.status === 'planned' && (b.kind ?? 'goal') === 'goal'
       }) ?? null
 
   const lastResolved = blocks.find((b) => b.outcome_id === outcome.id && b.status !== 'planned') ?? null
@@ -324,6 +332,7 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
   })()
 
   const base = {
+    calendarConnected: !!connection,
     day,
     window,
     outcome: { id: outcome.id, title: outcome.title, projectName: outcome.projectName },
@@ -375,7 +384,50 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
     ...base,
   })
 
-  if (existing) return finish(existing, 'existing')
+  if (existing) {
+    // The planner may have put a different outcome on today than the live
+    // ranking would; the card describes the block that is actually there.
+    if (existing.outcome_id && existing.outcome_id !== outcome.id) {
+      const alt = ranked.find((r) => r.outcome.id === existing.outcome_id)
+      if (alt) {
+        const altMilestones = milestones.filter((m) => m.outcomeId === alt.outcome.id).sort((a, b) => a.position - b.position)
+        const altMilestone = altMilestones.find((m) => m.id === existing.milestone_id) ?? alt.activeMilestone
+        const altIndex = altMilestone ? altMilestones.findIndex((m) => m.id === altMilestone.id) : -1
+        const altProject = projects.find((p) => p.id === alt.outcome.projectId) ?? null
+        const altSignals = signals.filter((s) => s.projectId === alt.outcome.projectId)
+        const altPace = alt.outcome.projectId ? (pace[alt.outcome.projectId] ?? 0) : 0
+        const altPaceText = altMilestones.length > 0
+          ? paceLine({ remaining: remainingMinutes(altMilestones), paceMinutesPerWeek: altPace, targetDate: alt.outcome.targetDate, now, formatDate: (d) => formatInTimeZone(d, timeZone, 'MMM d') })
+          : null
+        const text = renderCard({
+          timeZone, now, window, windowEndsWith,
+          project: alt.outcome.projectName,
+          outcome: alt.outcome.title,
+          targetDate: alt.outcome.targetDate,
+          milestone: altMilestone ? { title: altMilestone.title, index: altIndex, count: altMilestones.length } : null,
+          deliverable: existing.deliverable,
+          rationale: existing.rationale,
+          observed: observedLine(altSignals.slice(0, 8), timeZone, repoLabel(altProject?.repo_path ?? null)),
+          paceLine: altPaceText,
+          startCommand: existing.start_command,
+          disagreement: null,
+          previous: previousLine(blocks.find((b) => b.id !== existing.id && b.status !== 'planned') ?? null, timeZone, signals),
+          source: 'existing',
+          signalsAsOf: signals[0]?.occurredAt ?? now,
+        })
+        return {
+          status: 'ok',
+          text,
+          block: { id: existing.id, deliverable: existing.deliverable, rationale: existing.rationale, startsAt: existing.starts_at, endsAt: existing.ends_at, status: existing.status, startCommand: existing.start_command, expectedPaths: existing.expected_paths ?? [] },
+          source: 'existing',
+          ...base,
+          outcome: { id: alt.outcome.id, title: alt.outcome.title, projectName: alt.outcome.projectName },
+          milestone: altMilestone ? { id: altMilestone.id, title: altMilestone.title, index: altIndex, count: altMilestones.length } : null,
+        }
+      }
+    }
+    return finish(existing, 'existing')
+  }
 
   // ---- one model turn ----------------------------------------------------
   const usage = await readUsage(supabase, userId, today)
@@ -403,6 +455,8 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
       userNote: input.userNote ?? null,
     },
     forbiddenTitles,
+    // After the `existing` early return, every planned block today is an
+    // obstacle for the new one.
     existingBlocks: blocks
       .filter((b) => b.status === 'planned')
       .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) })),
@@ -445,10 +499,12 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
       status: 'planned',
       expected_paths: turn.proposal.expected_paths,
       start_command: turn.proposal.start_command,
+      kind: 'goal',
+      source: 'card',
       selection: { score: top.score, terms: top.terms, cwdProjectId: cwdProject?.id ?? null, source: turn.source },
     })
     .select(
-      'id, outcome_id, project_id, milestone_id, deliverable, rationale, starts_at, ends_at, status, confidence, evidence_signal_ids, start_command, expected_paths, resolved_by'
+      'id, outcome_id, project_id, milestone_id, deliverable, rationale, starts_at, ends_at, status, confidence, evidence_signal_ids, start_command, expected_paths, resolved_by, kind, locked'
     )
     .single()
 

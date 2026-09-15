@@ -2,8 +2,10 @@
 //
 // State a goal; get a ladder.
 //
-// POST creates the outcome, decomposes it once, and stores the milestones.
-// Two ways to call it:
+// POST creates the outcome. Three ways to call it:
+//   { title, target_date, project, draft: true }
+//       → creates a 'draft' goal with no ladder; the conversation at
+//         /goals/[id] interviews, proposes, and refines (the web path)
 //   { title, target_date, project, docs, commits, dry_run: true }
 //       → returns the ladder without writing anything (the CLI shows it and
 //         asks y/n)
@@ -29,6 +31,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 interface GoalBody {
+  draft?: boolean
   title?: string
   target_date?: string | null
   project?: { name: string; repo_path?: string | null } | null
@@ -111,6 +114,24 @@ export async function POST(request: NextRequest) {
 
   try {
     const project = await ensureProject(supabase, userId, body!)
+
+    if (body!.draft) {
+      const { data: draft, error } = await supabase
+        .from('outcomes')
+        .insert({
+          user_id: userId,
+          project_id: project?.id ?? null,
+          title,
+          target_date: body!.target_date ?? null,
+          status: 'draft',
+          weight: body!.weight ?? 2,
+        })
+        .select('id')
+        .single()
+      if (error || !draft) throw new Error(error?.message ?? 'Failed to create goal')
+      const view = await loadLadder(supabase, userId, draft.id)
+      return NextResponse.json({ goal: view }, { status: 201 })
+    }
 
     const { data: allProjects } = await supabase.from('projects').select('name').eq('user_id', userId)
     const { data: allOutcomes } = await supabase.from('outcomes').select('title').eq('user_id', userId)

@@ -21,7 +21,7 @@ function plain(result: Awaited<ReturnType<typeof buildCard>>): string {
     case 'ok':
       return result.text
     case 'no_calendar':
-      return 'No calendar connected. Connect Google Calendar in Settings so the card can be sized to your day.'
+      return 'No calendar connected.'
     case 'unavailable':
       return 'Today is marked unavailable in your work schedule. Nothing to plan.'
     case 'no_window':

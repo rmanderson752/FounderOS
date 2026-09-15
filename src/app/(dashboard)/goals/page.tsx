@@ -15,6 +15,8 @@ function statusTone(status: string): string {
   switch (status) {
     case 'active':
       return 'bg-brand-50 text-brand-600'
+    case 'draft':
+      return 'bg-amber-50 text-amber-700'
     case 'done':
       return 'bg-emerald-50 text-emerald-700'
     case 'paused':
@@ -46,7 +48,7 @@ function GoalRow({ goal }: { goal: LadderView }) {
           )}
         </div>
         <span className={cn('text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full flex-shrink-0', statusTone(goal.outcome.status))}>
-          {goal.outcome.status}
+          {goal.outcome.status === 'draft' ? 'in conversation' : goal.outcome.status}
         </span>
       </div>
 
@@ -73,8 +75,8 @@ function GoalRow({ goal }: { goal: LadderView }) {
 
 export default function GoalsPage() {
   const { data: goals, isLoading } = useLadders()
-  const activeGoals = goals?.filter((g) => g.outcome.status === 'active') ?? []
-  const otherGoals = goals?.filter((g) => g.outcome.status !== 'active') ?? []
+  const activeGoals = goals?.filter((g) => g.outcome.status === 'active' || g.outcome.status === 'draft') ?? []
+  const otherGoals = goals?.filter((g) => g.outcome.status !== 'active' && g.outcome.status !== 'draft') ?? []
 
   return (
     <PageTransition>

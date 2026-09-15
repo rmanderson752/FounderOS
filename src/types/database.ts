@@ -1,5 +1,11 @@
 /** plan_blocks.status. 'unobserved' means no evidence arrived; it is never 'skipped' by default. */
 export type BlockStatus = 'planned' | 'done' | 'partial' | 'skipped' | 'unobserved'
+/** plan_blocks.kind. 'goal' is work toward a milestone; the rest come from commitments. */
+export type BlockKind = 'goal' | 'flexible' | 'fixed' | 'habit' | 'chore'
+export type BlockSource = 'planner' | 'card' | 'user' | 'agent'
+/** outcomes.status. 'draft' exists from the first message of a goal thread until the ladder is accepted. */
+export type OutcomeStatus = 'draft' | 'active' | 'paused' | 'done' | 'abandoned'
+export type CommitmentKind = 'flexible' | 'fixed' | 'habit' | 'chore'
 
 export type Json =
   | string
@@ -549,7 +555,7 @@ export interface Database {
           title: string
           definition_of_done: string | null
           target_date: string | null
-          status: 'active' | 'paused' | 'done' | 'abandoned'
+          status: OutcomeStatus
           created_at: string
           updated_at: string
           // v4 (migration 005)
@@ -565,7 +571,7 @@ export interface Database {
           title: string
           definition_of_done?: string | null
           target_date?: string | null
-          status?: 'active' | 'paused' | 'done' | 'abandoned'
+          status?: OutcomeStatus
           weight?: number
           decomposition_version?: number
           assumptions?: string[]
@@ -575,7 +581,7 @@ export interface Database {
           title?: string
           definition_of_done?: string | null
           target_date?: string | null
-          status?: 'active' | 'paused' | 'done' | 'abandoned'
+          status?: OutcomeStatus
           weight?: number
           decomposition_version?: number
           assumptions?: string[]
@@ -641,6 +647,11 @@ export interface Database {
           /** The selection terms that chose this outcome, so the card can explain itself. */
           selection: Json
           start_command: string | null
+          // v4 second pass (migration 006)
+          kind: BlockKind
+          commitment_id: string | null
+          locked: boolean
+          source: BlockSource
         }
         Insert: {
           id?: string
@@ -662,6 +673,10 @@ export interface Database {
           evidence_signal_ids?: string[]
           selection?: Json
           start_command?: string | null
+          kind?: BlockKind
+          commitment_id?: string | null
+          locked?: boolean
+          source?: BlockSource
         }
         Update: {
           outcome_id?: string | null
@@ -680,6 +695,10 @@ export interface Database {
           evidence_signal_ids?: string[]
           selection?: Json
           start_command?: string | null
+          kind?: BlockKind
+          commitment_id?: string | null
+          locked?: boolean
+          source?: BlockSource
         }
       }
       agent_messages: {
@@ -691,6 +710,7 @@ export interface Database {
            *  stored verbatim so the thread can be replayed exactly. */
           content: Json
           plan_date: string | null
+          outcome_id: string | null
           created_at: string
         }
         Insert: {
@@ -699,6 +719,7 @@ export interface Database {
           role: 'user' | 'assistant'
           content: Json
           plan_date?: string | null
+          outcome_id?: string | null
         }
         Update: {
           content?: Json
@@ -850,6 +871,54 @@ export interface Database {
           metadata?: Json
         }
       }
+      commitments: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string | null
+          outcome_id: string | null
+          title: string
+          kind: CommitmentKind
+          /** 0 = Sunday … 6 = Saturday. Empty for chores. */
+          days_of_week: number[]
+          duration_minutes: number
+          fixed_start: string | null
+          fixed_end: string | null
+          due_date: string | null
+          active: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id?: string | null
+          outcome_id?: string | null
+          title: string
+          kind: CommitmentKind
+          days_of_week?: number[]
+          duration_minutes?: number
+          fixed_start?: string | null
+          fixed_end?: string | null
+          due_date?: string | null
+          active?: boolean
+          notes?: string | null
+        }
+        Update: {
+          project_id?: string | null
+          outcome_id?: string | null
+          title?: string
+          kind?: CommitmentKind
+          days_of_week?: number[]
+          duration_minutes?: number
+          fixed_start?: string | null
+          fixed_end?: string | null
+          due_date?: string | null
+          active?: boolean
+          notes?: string | null
+        }
+      }
       resolution_corrections: {
         Row: {
           id: string
@@ -907,3 +976,4 @@ export type SessionEvent = Database['public']['Tables']['session_events']['Row']
 export type Milestone = Database['public']['Tables']['milestones']['Row']
 export type Signal = Database['public']['Tables']['signals']['Row']
 export type ResolutionCorrection = Database['public']['Tables']['resolution_corrections']['Row']
+export type Commitment = Database['public']['Tables']['commitments']['Row']

@@ -13,7 +13,9 @@ import type { DayCalendar } from './types'
 export interface DayInput {
   supabase: Db
   userId: string
-  connection: CalendarConnection
+  /** Null when no calendar is connected: the work window counts as free. */
+  connection: CalendarConnection | null
+  timeZone?: string
   /** `yyyy-MM-dd` in the user's zone. Defaults to today. */
   date?: string
   origin: string
@@ -31,7 +33,7 @@ export function todayIn(timeZone: string, now = new Date()): string {
 
 export async function buildDayCalendar(input: DayInput): Promise<DayResult> {
   const now = input.now ?? new Date()
-  const timeZone = input.connection.timezone
+  const timeZone = input.connection?.timezone ?? input.timeZone ?? 'America/New_York'
   const date = input.date ?? todayIn(timeZone, now)
 
   // `date` is a calendar date in the user's zone; read its weekday straight
@@ -55,16 +57,17 @@ export async function buildDayCalendar(input: DayInput): Promise<DayResult> {
     }
   }
 
-  const accessToken = await freshAccessToken(input.connection, input.origin, input.supabase)
-
   // Widen by a day either side so events straddling midnight still appear.
-  const events = await fetchEvents({
-    accessToken,
-    origin: input.origin,
-    calendarIds: input.connection.calendarIds,
-    timeMin: new Date(workWindow.start.getTime() - 24 * 3600 * 1000),
-    timeMax: new Date(workWindow.end.getTime() + 24 * 3600 * 1000),
-  })
+  // No connection means no events: the whole work window is free.
+  const events = input.connection
+    ? await fetchEvents({
+        accessToken: await freshAccessToken(input.connection, input.origin, input.supabase),
+        origin: input.origin,
+        calendarIds: input.connection.calendarIds,
+        timeMin: new Date(workWindow.start.getTime() - 24 * 3600 * 1000),
+        timeMax: new Date(workWindow.end.getTime() + 24 * 3600 * 1000),
+      })
+    : []
 
   const isToday = date === todayIn(timeZone, now)
   const gaps = computeFreeGaps({

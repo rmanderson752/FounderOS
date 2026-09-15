@@ -17,6 +17,7 @@ export interface CardBlock {
 
 export interface CardResponse {
   status: 'ok' | 'no_calendar' | 'unavailable' | 'no_window' | 'no_outcomes' | 'capped'
+  calendarConnected?: boolean
   text: string
   reason?: string
   day?: DayCalendar

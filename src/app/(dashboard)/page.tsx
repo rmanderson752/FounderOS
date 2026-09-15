@@ -1,158 +1,195 @@
 // src/app/(dashboard)/page.tsx
-// The morning view: the Start Card above today's timeline.
+// The week, front and center, with today's Start Card above it.
 //
-// The card is the product. The timeline underneath shows the gap it was
-// sized to and the block drawn inside it. Nothing here asks the user for
-// anything; the only inputs are corrections.
+// The card is what to do now. The calendar underneath is the week as
+// planned: events, goal blocks, recurring commitments, habits, chores, due
+// dates. Drag a block to move it, or tell the planner in one line.
 
 'use client'
 
 import { useState } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { CalendarClock, CalendarX2, Coffee, Flag, PauseCircle } from 'lucide-react'
+import { CalendarClock, CalendarX2, ChevronLeft, ChevronRight, Flag, Loader2, PauseCircle, Send, Sparkles, Trash2, Wand2, X } from 'lucide-react'
 import { PageTransition, Skeleton } from '@/components/ui'
-import { DayTimeline, formatDuration } from '@/components/day'
 import { StartCard } from '@/components/card/StartCard'
+import { WeekCalendar } from '@/components/week/WeekCalendar'
 import { useCard } from '@/hooks/useCard'
 import { useUser } from '@/hooks/useUser'
+import { useDeleteBlock, useMoveBlock, usePlanWeek, useWeek, useWeekChat } from '@/hooks/useWeek'
+import { cn } from '@/lib/utils'
+import type { WeekBlock } from '@/lib/week/plan'
+
+function shiftWeek(weekStart: string, weeks: number): string {
+  const d = new Date(`${weekStart}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + weeks * 7)
+  return d.toISOString().slice(0, 10)
+}
 
 export default function MorningPage() {
   const { data: user } = useUser()
   const [note, setNote] = useState<string | null>(null)
-  const { data: card, isLoading, isError, error, isFetching } = useCard(note)
+  const { data: card, isLoading: cardLoading, isError: cardError, error: cardErr, isFetching } = useCard(note)
+
+  const [weekStart, setWeekStart] = useState<string | null>(null)
+  const { data: week, isLoading: weekLoading, isError: weekError, error: weekErr } = useWeek(weekStart)
+  const plan = usePlanWeek(weekStart)
+  const move = useMoveBlock(weekStart)
+  const remove = useDeleteBlock(weekStart)
+  const chat = useWeekChat(weekStart)
+
+  const [command, setCommand] = useState('')
+  const [reply, setReply] = useState<string | null>(null)
+  const [selected, setSelected] = useState<WeekBlock | null>(null)
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   const firstName = user?.name?.split(' ')[0]
-  const day = card?.day
+
+  const send = async () => {
+    const text = command.trim()
+    if (!text) return
+    setReply(null)
+    try {
+      const result = await chat.mutateAsync(text)
+      setReply(result.reply || 'Done.')
+      setCommand('')
+    } catch (e) {
+      setReply(e instanceof Error ? e.message : 'The planner could not do that.')
+    }
+  }
+
+  const onMove = async (block: WeekBlock, startsAt: Date, endsAt: Date) => {
+    setMoveError(null)
+    try {
+      await move.mutateAsync({ id: block.id, starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString() })
+    } catch (e) {
+      setMoveError(e instanceof Error ? e.message : 'Could not move that block.')
+    }
+  }
 
   return (
     <PageTransition>
-      <div className="max-w-2xl">
-        <p className="text-sm font-semibold text-ink-4 uppercase tracking-wider mb-2">
-          {format(new Date(), 'EEEE, d MMMM')}
-        </p>
-        <h1 className="text-4xl font-bold text-ink tracking-tight mb-6">
-          {firstName ? `Morning, ${firstName}.` : 'Good morning.'}
-        </h1>
+      <div className="max-w-5xl">
+        <p className="text-sm font-semibold text-ink-4 uppercase tracking-wider mb-2">{format(new Date(), 'EEEE, d MMMM')}</p>
+        <h1 className="text-4xl font-bold text-ink tracking-tight mb-6">{firstName ? `Morning, ${firstName}.` : 'Good morning.'}</h1>
 
-        {isLoading && (
-          <div className="space-y-3">
-            <Skeleton className="h-[180px] w-full rounded-3xl" />
-            <Skeleton className="h-5 w-56 mt-6" />
-            <Skeleton className="h-[420px] w-full rounded-2xl" />
-          </div>
+        {/* ---- the card ---- */}
+        {cardLoading && <Skeleton className="h-[160px] w-full rounded-3xl mb-8" />}
+        {cardError && (
+          <Notice icon={CalendarX2} title="Could not build your card" body={cardErr instanceof Error ? cardErr.message : 'Something went wrong.'} href="/settings" cta="Check settings" />
         )}
-
-        {isError && (
-          <Notice
-            icon={CalendarX2}
-            title="Could not build your card"
-            body={error instanceof Error ? error.message : 'Something went wrong reading your calendar or goals.'}
-            href="/settings"
-            cta="Check settings"
-          />
-        )}
-
-        {card?.status === 'no_calendar' && (
-          <Notice
-            icon={CalendarClock}
-            title="Connect your calendar"
-            body="Founder OS reads your day to find the gap that is genuinely free, then sizes one deliverable to it. Read-only; it never writes to your calendar."
-            href="/api/calendar/connect"
-            cta="Connect Google Calendar"
-          />
-        )}
-
-        {card?.status === 'unavailable' && (
-          <Notice
-            icon={Coffee}
-            title="Today is marked unavailable"
-            body="This weekday is switched off in your work schedule, so there is nothing to plan."
-            href="/settings"
-            cta="Work schedule"
-          />
-        )}
-
         {card?.status === 'no_outcomes' && (
-          <Notice
-            icon={Flag}
-            title="State one goal"
-            body="A goal with a date is enough. It gets reverse-engineered into milestones once, and every card after that carries the chain back to it."
-            href="/goals/new"
-            cta="Add a goal"
-          />
+          <Notice icon={Flag} title="State one goal" body="Say it in a sentence. The agent asks what it needs, proposes the ladder, and plans the week around it." href="/goals/new" cta="Start a goal" />
         )}
-
         {card?.status === 'capped' && (
-          <Notice
-            icon={PauseCircle}
-            title="Card generation is paused for today"
-            body={card.reason ?? 'The daily cost ceiling was reached.'}
-            href="/settings"
-            cta="Settings"
-          />
+          <Notice icon={PauseCircle} title="Card generation is paused for today" body={card.reason ?? 'The daily cost ceiling was reached.'} href="/settings" cta="Settings" />
         )}
-
-        {card?.status === 'no_window' && day && (
-          <p className="text-[17px] text-ink-3 leading-relaxed mb-8">
-            No free window left in today&apos;s work hours. Nothing to plan.
-          </p>
+        {card?.status === 'no_window' && (
+          <p className="text-[15px] text-ink-3 leading-relaxed mb-6">No free window left in today&apos;s work hours. The week below is what comes next.</p>
         )}
-
         {card?.status === 'ok' && (
           <div className="mb-8">
             <StartCard card={card} onRedirect={setNote} isRefreshing={isFetching} />
           </div>
         )}
 
-        {day && card?.status !== 'unavailable' && (
-          <>
-            <p className="text-[15px] text-ink-3 leading-relaxed mb-4">
-              {day.gaps.length === 0 ? (
-                <>Your calendar is full for the rest of today.</>
-              ) : (
-                <>
-                  <span className="font-semibold text-ink">{formatDuration(day.freeMinutes)} free</span> across{' '}
-                  {day.gaps.length} {day.gaps.length === 1 ? 'gap' : 'gaps'}.
-                </>
-              )}
-            </p>
-            <DayTimeline
-              day={day}
-              blocks={
-                card?.status === 'ok' && card.block
-                  ? [
-                      {
-                        id: card.block.id,
-                        deliverable: card.block.deliverable,
-                        status: card.block.status,
-                        start: new Date(card.block.startsAt),
-                        end: new Date(card.block.endsAt),
-                      },
-                    ]
-                  : []
-              }
-            />
-          </>
+        {/* ---- the week ---- */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setWeekStart(shiftWeek(week?.weekStart ?? new Date().toISOString().slice(0, 10), -1))} className="w-8 h-8 rounded-full hover:bg-surface-3 flex items-center justify-center text-ink-3" aria-label="Previous week">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <h2 className="text-[17px] font-semibold text-ink px-1">
+              {week ? `Week of ${format(new Date(`${week.weekStart}T12:00:00Z`), 'MMM d')}` : 'This week'}
+            </h2>
+            <button type="button" onClick={() => setWeekStart(shiftWeek(week?.weekStart ?? new Date().toISOString().slice(0, 10), 1))} className="w-8 h-8 rounded-full hover:bg-surface-3 flex items-center justify-center text-ink-3" aria-label="Next week">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            {weekStart && (
+              <button type="button" onClick={() => setWeekStart(null)} className="text-xs font-semibold text-brand-600 ml-1">today</button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => plan.mutate()}
+            disabled={plan.isPending || !week}
+            className="inline-flex items-center gap-2 rounded-full bg-brand-500 text-white px-4 py-2 text-sm font-semibold hover:bg-brand-600 disabled:opacity-50 transition-colors"
+          >
+            {plan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" strokeWidth={2} />}
+            {week?.blocks.length ? 'Re-plan week' : 'Plan my week'}
+          </button>
+        </div>
+
+        {weekLoading && <Skeleton className="h-[520px] w-full rounded-2xl" />}
+        {weekError && <p className="text-sm text-rose-600 mb-4">{weekErr instanceof Error ? weekErr.message : 'Could not load the week.'}</p>}
+        {week && !week.connected && (
+          <p className="text-xs text-ink-4 mb-3 flex items-center gap-1.5">
+            <CalendarClock className="w-3.5 h-3.5" /> No calendar connected — your work window counts as free.{' '}
+            <a href="/api/calendar/connect" className="text-brand-600 font-semibold">Connect Google Calendar</a> to plan around real events.
+          </p>
         )}
+        {week?.calendar && (
+          <div className="bg-white border border-line rounded-3xl shadow-sm p-4">
+            <WeekCalendar week={week} onMove={onMove} onSelect={setSelected} selectedId={selected?.id ?? null} />
+            {moveError && <p className="text-xs text-rose-600 mt-2">{moveError}</p>}
+            {week.notes.length > 0 && (
+              <ul className="mt-3 text-xs text-ink-4 space-y-0.5">
+                {week.notes.slice(0, 5).map((n, i) => (
+                  <li key={i}>· {n}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* selected block */}
+        {selected && (
+          <div className="mt-3 bg-white border border-line rounded-2xl px-4 py-3 flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-ink">{selected.title}</p>
+              <p className="text-xs text-ink-4">
+                {selected.kind} · {selected.status}{selected.locked ? ' · locked' : ''}{selected.rationale ? ` · ${selected.rationale}` : ''}
+              </p>
+            </div>
+            {selected.status === 'planned' && (
+              <button type="button" onClick={() => { remove.mutate(selected.id); setSelected(null) }} className="text-ink-4 hover:text-rose-600" aria-label="Remove block">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button type="button" onClick={() => setSelected(null)} className="text-ink-4 hover:text-ink" aria-label="Close">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* ---- tell the planner ---- */}
+        <div className="mt-4 bg-white border border-line rounded-3xl shadow-sm p-4">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-4 h-4 text-brand-500 flex-shrink-0" strokeWidth={2} />
+            <input
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && send()}
+              placeholder='Tell the planner: "push outreach to Thursday", "gym Mon/Wed/Fri at 7", "plan my week"'
+              className="flex-1 bg-transparent outline-none text-[15px] text-ink placeholder:text-ink-4"
+              disabled={chat.isPending}
+            />
+            <button type="button" onClick={send} disabled={chat.isPending || !command.trim()} className={cn('w-9 h-9 rounded-full flex items-center justify-center', command.trim() ? 'bg-brand-500 text-white' : 'bg-surface-3 text-ink-4')} aria-label="Send">
+              {chat.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" strokeWidth={2} />}
+            </button>
+          </div>
+          {reply && <p className="text-sm text-ink-2 mt-3 pl-7">{reply}</p>}
+        </div>
+
+        <p className="text-xs text-ink-4 mt-4">
+          Goals and their ladders live on <Link href="/goals" className="text-brand-600 font-semibold">Goals</Link>. The week is re-planned every Sunday from your goals and commitments; locked and finished blocks stay put.
+        </p>
       </div>
     </PageTransition>
   )
 }
 
-function Notice({
-  icon: Icon,
-  title,
-  body,
-  href,
-  cta,
-}: {
-  icon: typeof CalendarClock
-  title: string
-  body: string
-  href: string
-  cta: string
-}) {
+function Notice({ icon: Icon, title, body, href, cta }: { icon: typeof CalendarClock; title: string; body: string; href: string; cta: string }) {
   return (
     <div className="bg-white border border-line rounded-3xl shadow-sm p-6 mb-8">
       <div className="flex items-start gap-4">
@@ -162,12 +199,7 @@ function Notice({
         <div className="min-w-0">
           <h2 className="text-[17px] font-semibold text-ink mb-1.5">{title}</h2>
           <p className="text-sm text-ink-3 leading-relaxed mb-4">{body}</p>
-          <Link
-            href={href}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500 hover:text-brand-600 transition-colors"
-          >
-            {cta}
-          </Link>
+          <Link href={href} className="inline-flex items-center gap-2 text-sm font-semibold text-brand-500 hover:text-brand-600 transition-colors">{cta}</Link>
         </div>
       </div>
     </div>

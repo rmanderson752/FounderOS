@@ -26,6 +26,7 @@ import { observedPace } from '@/lib/planner/capacity'
 import { pickRocks, rechainDates } from '@/lib/planner/rechain'
 import type { PlannerMilestone, PlannerOutcome } from '@/lib/planner/types'
 import { emailEnabled, sendCardEmail } from '@/lib/jobs/email'
+import { replanWeek } from '@/lib/week/plan'
 import type { Db } from '@/lib/supabase/types'
 
 export const dynamic = 'force-dynamic'
@@ -180,7 +181,15 @@ export async function GET(request: NextRequest) {
     try {
       entry.closed = await closeOutStaleBlocks(supabase, u.id, now)
 
-      if (weekday === 0) entry.sunday = await sundayPass(supabase, u.id, now, today)
+      if (weekday === 0) {
+        entry.sunday = await sundayPass(supabase, u.id, now, today)
+        // Lay next week out from goals and commitments. Locked and resolved
+        // blocks stay; everything provisional is re-planned.
+        const tomorrow = new Date(`${today}T00:00:00Z`)
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+        const week = await replanWeek({ supabase, userId: u.id, origin, weekStart: weekStartOf(tomorrow.toISOString().slice(0, 10)), now })
+        entry.week = { blocks: week.blocks.length, notes: week.notes.slice(0, 5) }
+      }
       if (weekday === 6) entry.saturday = await saturdayRollup(supabase, u.id, today)
 
       if (weekday >= 1 && weekday <= 5) {
