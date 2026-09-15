@@ -4,12 +4,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { exchangeCodeForTokens } from '@/lib/google/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { completeCalendarConnection, isV3State } from '@/lib/calendar/connect'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const state = searchParams.get('state') // user_id
   const error = searchParams.get('error')
+
+  // This URI is the one registered on the Google OAuth client. When the v3
+  // (read-only, encrypted) flow started the round-trip, finish it here.
+  if (isV3State(state)) return completeCalendarConnection(request)
 
   if (error) {
     console.error('Google OAuth error:', error)

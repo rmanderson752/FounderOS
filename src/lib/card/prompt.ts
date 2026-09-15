@@ -27,6 +27,7 @@ Rules:
 - Prefer a candidate from the milestone when one fits the window; rewrite it to be more specific if it is vague. Invent a deliverable only when no candidate fits.
 - If the last block on this outcome resolved as partial, finish that first rather than starting something new.
 - If the observations show the deliverable is already done, pick the next one; never propose work that already shipped.
+- Never propose a deliverable listed under already_scheduled_this_week — those blocks exist on the calendar already. Take the next candidate; if every candidate is scheduled, propose the smallest concrete next step beyond them.
 - Never mention streaks, missed days, or what was not done. The state block may say a block was unobserved; that is information, not a fault.
 - If the tool result says the proposal was rejected, correct exactly what the result names and call propose_block again.
 - After the tool result says ACCEPTED, reply with nothing further.`

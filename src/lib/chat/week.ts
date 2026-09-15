@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 import type { Db } from '@/lib/supabase/types'
 import { loadWeek, replanWeek, type WeekView } from '@/lib/week/plan'
+import { upsertCommitment } from '@/lib/week/commitments'
 
 export const WEEK_SYSTEM_PROMPT = `You adjust a solo founder's week on their calendar. You receive the week as it stands: each day's events, free gaps, and the planned blocks (goal work, recurring commitments, habits, chores) with their ids and times, plus the founder's commitments.
 
@@ -26,6 +27,12 @@ type DayName = (typeof DAY_NAMES)[number]
 const DaySchema = z.enum(DAY_NAMES)
 function dayNumbers(names: DayName[]): number[] {
   return Array.from(new Set(names.map((n) => DAY_NAMES.indexOf(n)))).sort()
+}
+const DaysInput = z
+  .array(z.union([DaySchema, z.number().int().min(0).max(6)]))
+  .describe('Day names, e.g. ["mon","wed","fri"]; "every weekday" is mon–fri. Empty for chores.')
+function toDayNumbers(days: (DayName | number)[]): number[] {
+  return Array.from(new Set(days.map((d) => (typeof d === 'number' ? d : DAY_NAMES.indexOf(d))))).sort()
 }
 
 export interface WeekThreadContext {
@@ -146,11 +153,11 @@ export function weekTools(ctx: WeekThreadContext) {
 
   const addCommitment = betaZodTool({
     name: 'add_commitment',
-    description: 'Record a recurring or dated obligation so the planner places it every week.',
+    description: 'Record or change a recurring or dated obligation so the planner places it every week. Same title = update the existing one ("gym now runs four days" changes the gym, it does not add a second). Then call replan_week.',
     inputSchema: z.object({
       title: z.string(),
       kind: z.enum(['flexible', 'fixed', 'habit', 'chore']),
-      days: z.array(DaySchema).describe('Day names, e.g. ["tue"]; "every weekday" is mon–fri. Empty for chores.'),
+      days: DaysInput,
       duration_minutes: z.number().int().min(5).max(480),
       fixed_start: z.string().nullable(),
       fixed_end: z.string().nullable(),
@@ -159,10 +166,19 @@ export function weekTools(ctx: WeekThreadContext) {
     run: async (input) => {
       if (input.kind === 'fixed' && (!input.fixed_start || !input.fixed_end)) return 'REJECTED: fixed needs fixed_start and fixed_end.'
       if (input.kind === 'chore' && !input.due_date) return 'REJECTED: chores need a due_date.'
-      if (input.kind !== 'chore' && input.days.length === 0) return 'REJECTED: days required.'
-      const { days, ...rest } = input
-      const { error } = await supabase.from('commitments').insert({ user_id: userId, ...rest, days_of_week: dayNumbers(days) })
-      return error ? `ERROR: ${error.message}` : `Recorded "${input.title}". Call replan_week to place it.`
+      const days = toDayNumbers(input.days)
+      if (input.kind !== 'chore' && days.length === 0) return 'REJECTED: days required.'
+      const result = await upsertCommitment(supabase, userId, {
+        title: input.title,
+        kind: input.kind,
+        days_of_week: days,
+        duration_minutes: input.duration_minutes,
+        fixed_start: input.fixed_start,
+        fixed_end: input.fixed_end,
+        due_date: input.due_date,
+      })
+      if ('error' in result) return `ERROR: ${result.error}`
+      return `${result.action === 'updated' ? 'Updated' : 'Recorded'} "${input.title}". Call replan_week to place it.`
     },
   })
 

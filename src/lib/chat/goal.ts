@@ -21,6 +21,7 @@ import { auditLadder } from '@/lib/decompose/decompose'
 import { validateDeliverable } from '@/lib/planner/validate'
 import { loadLadder } from '@/lib/goals/ladder'
 import { replanWeek } from '@/lib/week/plan'
+import { upsertCommitment } from '@/lib/week/commitments'
 
 export const GOAL_SYSTEM_PROMPT = `You help a solo founder turn a goal into a ladder of milestones, then keep it true as they work. You talk like a sharp colleague: short, specific, no filler, no lists of questions.
 
@@ -53,11 +54,17 @@ const DaySchema = z.enum(DAY_NAMES)
 function dayNumbers(names: DayName[]): number[] {
   return Array.from(new Set(names.map((n) => DAY_NAMES.indexOf(n)))).sort()
 }
+const DaysInput = z
+  .array(z.union([DaySchema, z.number().int().min(0).max(6)]))
+  .describe('Day names, e.g. ["mon","wed","fri"]; "every weekday" is mon–fri. Empty for chores.')
+function toDayNumbers(days: (DayName | number)[]): number[] {
+  return Array.from(new Set(days.map((d) => (typeof d === 'number' ? d : DAY_NAMES.indexOf(d))))).sort()
+}
 
 const CommitmentInput = z.object({
   title: z.string(),
   kind: z.enum(['flexible', 'fixed', 'habit', 'chore']).describe('flexible: weekly block the planner places; fixed: exact time like an event; habit: small and daily; chore: one-off with a due date'),
-  days: z.array(DaySchema).describe('Day names, e.g. ["mon","wed","fri"]; "every weekday" is mon–fri. Empty for chores.'),
+  days: DaysInput,
   duration_minutes: z.number().int().min(5).max(480),
   fixed_start: z.string().nullable().describe('HH:mm, fixed only'),
   fixed_end: z.string().nullable().describe('HH:mm, fixed only'),
@@ -245,26 +252,27 @@ export function goalTools(ctx: GoalThreadContext) {
 
   const addCommitment = betaZodTool({
     name: 'add_commitment',
-    description: 'Record something recurring or dated the user mentioned, so the week planner places it: a flexible weekly block, a fixed-time commitment, a daily habit, or a dated chore.',
+    description: 'Record something recurring or dated the user mentioned, so the week planner places it: a flexible weekly block, a fixed-time commitment, a daily habit, or a dated chore. Same title = update the existing one (use this to change days or times too).',
     inputSchema: CommitmentInput,
     run: async (input) => {
       if (input.kind === 'fixed' && (!input.fixed_start || !input.fixed_end)) return 'REJECTED: fixed commitments need fixed_start and fixed_end (HH:mm).'
       if (input.kind === 'chore' && !input.due_date) return 'REJECTED: chores need a due_date.'
-      if (input.kind !== 'chore' && input.days.length === 0) return 'REJECTED: days is required for flexible, fixed and habit.'
+      const days = toDayNumbers(input.days)
+      if (input.kind !== 'chore' && days.length === 0) return 'REJECTED: days is required for flexible, fixed and habit.'
       const { data: outcome } = await supabase.from('outcomes').select('project_id').eq('id', outcomeId).maybeSingle()
-      const { error } = await supabase.from('commitments').insert({
-        user_id: userId,
-        outcome_id: outcomeId,
-        project_id: (outcome?.project_id as string | null) ?? null,
+      const result = await upsertCommitment(supabase, userId, {
         title: input.title,
         kind: input.kind,
-        days_of_week: dayNumbers(input.days),
+        days_of_week: days,
         duration_minutes: input.duration_minutes,
         fixed_start: input.fixed_start,
         fixed_end: input.fixed_end,
         due_date: input.due_date,
+        outcome_id: outcomeId,
+        project_id: (outcome?.project_id as string | null) ?? null,
       })
-      return error ? `ERROR: ${error.message}` : `Recorded "${input.title}" (${input.kind}).`
+      if ('error' in result) return `ERROR: ${result.error}`
+      return `${result.action === 'updated' ? 'Updated' : 'Recorded'} "${input.title}" (${input.kind}).`
     },
   })
 

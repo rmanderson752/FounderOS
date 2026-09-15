@@ -51,6 +51,12 @@ export interface WeekDay {
   workWindow: TimeInterval
   /** Free gaps after calendar events; today's are already trimmed to now. */
   gaps: TimeInterval[]
+  /**
+   * A day switched off in the work schedule. Fixed commitments (gym on a
+   * Saturday) are still placed; goal work, habits, chores and flexible blocks
+   * are not.
+   */
+  available?: boolean
 }
 
 export interface KeptBlock extends TimeInterval {
@@ -186,10 +192,10 @@ export function planWeek(input: WeekPlanInput): WeekPlan {
 
   for (const day of input.days) {
     const keptToday = input.kept.filter((k) => k.date === day.date)
+    const available = day.available !== false
     let free = subtractIntervals(day.gaps, keptToday)
     const freeBudget = free.reduce((s, g) => s + minutes(g), 0)
     let planned = 0
-    if (free.length === 0 && keptToday.length === 0) continue
 
     const take = (interval: TimeInterval) => {
       free = subtractIntervals(free, [interval])
@@ -211,6 +217,9 @@ export function planWeek(input: WeekPlanInput): WeekPlan {
       placed(c)
       free = subtractIntervals(free, [interval])
     }
+
+    // Everything below needs free time on a working day.
+    if (!available || (free.length === 0 && keptToday.length === 0)) continue
 
     // 2. habits — start of the first gap that fits
     for (const c of input.commitments) {

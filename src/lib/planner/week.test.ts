@@ -163,6 +163,15 @@ describe('planWeek', () => {
     expect(p.blocks.filter((b) => b.commitmentId === 'c-gym').map((b) => b.date)).toEqual(['2026-09-16', '2026-09-18'])
   })
 
+  it('places fixed commitments on non-work days but nothing else', () => {
+    const saturday: WeekDay = { date: '2026-09-19', weekday: 6, workWindow: { start: T('2026-09-19T13:00:00Z'), end: T('2026-09-19T23:00:00Z') }, gaps: [], available: false }
+    const run = { id: 'c-run', title: 'Run', kind: 'fixed' as const, daysOfWeek: [6], durationMinutes: 60, fixedStart: '07:00', fixedEnd: '08:00', dueDate: null, projectId: null, outcomeId: null }
+    const p = planWeek({ ...base, days: [...days, saturday], commitments: [...commitments, run] })
+    const sat = p.blocks.filter((b) => b.date === '2026-09-19')
+    expect(sat.map((b) => b.kind)).toEqual(['fixed'])
+    expect(sat[0].title).toBe('Run')
+  })
+
   it('explains what it could not place', () => {
     const tiny = planWeek({ ...base, days: [{ ...days[0], gaps: [{ start: T('2026-09-14T13:00:00Z'), end: T('2026-09-14T13:20:00Z') }] }] })
     expect(tiny.blocks.filter((b) => b.kind === 'goal')).toHaveLength(0)

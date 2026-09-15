@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { buildAuthUrl } from '@/lib/calendar/google'
+import { v3State } from '@/lib/calendar/connect'
 
 export async function GET(request: NextRequest) {
   const { origin } = new URL(request.url)
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // The user id round-trips through `state` so the callback knows who came
     // back without trusting anything in the query string.
-    return NextResponse.redirect(buildAuthUrl(origin, user.id))
+    return NextResponse.redirect(buildAuthUrl(origin, v3State(user.id)))
   } catch (error) {
     console.error('Calendar connect failed:', error)
     return NextResponse.redirect(new URL('/settings?calendar=error', origin))

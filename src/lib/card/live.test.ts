@@ -52,6 +52,7 @@ describe.skipIf(!live)('card turn (live)', () => {
         paceLine: 'needs ~22h; at ~5h/wk that lands Oct 30, target Oct 24.',
         repoPath: '/Users/ryananderson/hnry',
         userNote: null,
+        scheduledThisWeek: [],
       },
       forbiddenTitles: ['HNRY', 'HNRY TestFlight beta to 5 testers', 'Auth + onboarding complete'],
       existingBlocks: [],

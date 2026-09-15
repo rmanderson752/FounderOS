@@ -109,6 +109,7 @@ export function useWeekChat(start?: string | null) {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['week', start ?? 'current'], data.week)
+      queryClient.invalidateQueries({ queryKey: ['week'] })
       queryClient.invalidateQueries({ queryKey: ['card'] })
       queryClient.invalidateQueries({ queryKey: ['goals-v4'] })
     },

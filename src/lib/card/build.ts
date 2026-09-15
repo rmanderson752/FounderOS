@@ -209,6 +209,18 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
     .limit(40)
   const blocks = (recentBlocks ?? []) as BlockRow[]
 
+  // Goal deliverables already on the calendar this week, so the card never
+  // schedules the same candidate twice.
+  const weekStartDate = new Date(`${weekStart}T00:00:00Z`)
+  const { data: weekGoalRows } = await supabase
+    .from('plan_blocks')
+    .select('deliverable')
+    .eq('user_id', userId)
+    .eq('kind', 'goal')
+    .gte('starts_at', new Date(weekStartDate.getTime() - 12 * 3600_000).toISOString())
+    .lt('starts_at', new Date(weekStartDate.getTime() + 8 * 86_400_000).toISOString())
+  const scheduledThisWeek = Array.from(new Set(((weekGoalRows ?? []) as { deliverable: string }[]).map((r) => r.deliverable)))
+
   const todayNonGoal = blocks
     .filter((b) => b.status === 'planned' && (b.kind ?? 'goal') !== 'goal' && new Date(b.ends_at) > now)
     .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }))
@@ -438,6 +450,8 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
     ...projects.map((p) => p.name),
     ...outcomes.map((o) => o.title),
     ...outcomeMilestones.map((m) => m.title),
+    // Already on the calendar this week: the validator rejects a verbatim repeat.
+    ...scheduledThisWeek,
   ]
 
   const turn = await runCardTurn({
@@ -453,6 +467,7 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
       paceLine: paceText ?? 'no ladder yet',
       repoPath: project?.repo_path ?? null,
       userNote: input.userNote ?? null,
+      scheduledThisWeek,
     },
     forbiddenTitles,
     // After the `existing` early return, every planned block today is an

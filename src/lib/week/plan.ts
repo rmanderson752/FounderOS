@@ -207,7 +207,7 @@ export async function replanWeek(input: { supabase: Db; userId: string; origin: 
   const replaceIds = existing.filter((b) => !keep(b)).map((b) => b.id)
 
   const plan = planWeek({
-    days: calendar.days.filter((d) => d.available && !d.isPast).map((d) => ({ date: d.date, weekday: d.weekday, workWindow: d.workWindow, gaps: d.gaps })),
+    days: calendar.days.filter((d) => !d.isPast).map((d) => ({ date: d.date, weekday: d.weekday, workWindow: d.workWindow, gaps: d.gaps, available: d.available })),
     timeZone, today, now, commitments, outcomes, milestones, signals, kept,
   })
 

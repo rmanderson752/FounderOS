@@ -1,5 +1,8 @@
 // src/lib/week/commitments.ts
-// Validation shared by the commitments routes and the CLI.
+// Validation shared by the commitments routes and the CLI, and the upsert the
+// conversation tools use.
+
+import type { Db } from '@/lib/supabase/types'
 
 const KINDS = new Set(['flexible', 'fixed', 'habit', 'chore'])
 const TIME = /^\d{2}:\d{2}(:\d{2})?$/
@@ -34,3 +37,46 @@ export function validateCommitment(body: CommitmentBody, partial = false): strin
   return null
 }
 
+/**
+ * Create or update a commitment by title. "Gym now runs four days" must
+ * change the gym, not add a second one. On update, the commitment's unplaced
+ * (unlocked, planned, future) blocks are dropped so a re-plan lays it out
+ * again.
+ */
+export async function upsertCommitment(
+  supabase: Db,
+  userId: string,
+  input: { title: string; kind: string; days_of_week: number[]; duration_minutes: number; fixed_start: string | null; fixed_end: string | null; due_date: string | null; outcome_id?: string | null; project_id?: string | null }
+): Promise<{ action: 'created' | 'updated'; id: string } | { error: string }> {
+  const { data: existing } = await supabase
+    .from('commitments')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('active', true)
+    .ilike('title', input.title.trim())
+    .maybeSingle()
+  if (existing) {
+    const { error } = await supabase
+      .from('commitments')
+      .update({ kind: input.kind, days_of_week: input.days_of_week, duration_minutes: input.duration_minutes, fixed_start: input.fixed_start, fixed_end: input.fixed_end, due_date: input.due_date })
+      .eq('id', existing.id)
+      .eq('user_id', userId)
+    if (error) return { error: error.message }
+    await supabase
+      .from('plan_blocks')
+      .delete()
+      .eq('user_id', userId)
+      .eq('commitment_id', existing.id)
+      .eq('status', 'planned')
+      .eq('locked', false)
+      .gt('starts_at', new Date().toISOString())
+    return { action: 'updated', id: existing.id }
+  }
+  const { data, error } = await supabase
+    .from('commitments')
+    .insert({ user_id: userId, title: input.title.trim(), kind: input.kind, days_of_week: input.days_of_week, duration_minutes: input.duration_minutes, fixed_start: input.fixed_start, fixed_end: input.fixed_end, due_date: input.due_date, outcome_id: input.outcome_id ?? null, project_id: input.project_id ?? null })
+    .select('id')
+    .single()
+  if (error || !data) return { error: error?.message ?? 'insert failed' }
+  return { action: 'created', id: data.id }
+}

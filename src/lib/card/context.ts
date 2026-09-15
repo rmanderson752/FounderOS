@@ -28,6 +28,8 @@ export interface CardContextInput {
   repoPath: string | null
   /** A one-line redirect from the user (`fos no "..."`), if any. */
   userNote: string | null
+  /** Goal deliverables already on the calendar this week (any status). Never propose these again. */
+  scheduledThisWeek: string[]
 }
 
 function stable(value: unknown): string {
@@ -88,6 +90,7 @@ export function buildStateBlock(input: CardContextInput): string {
         }
       : null,
     pace: input.paceLine,
+    already_scheduled_this_week: input.scheduledThisWeek,
     user_note: input.userNote,
   }
 
