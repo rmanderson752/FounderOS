@@ -28,6 +28,7 @@ import type { PlannerMilestone, PlannerOutcome } from '@/lib/planner/types'
 import { emailEnabled, sendCardEmail } from '@/lib/jobs/email'
 import { replanWeek } from '@/lib/week/plan'
 import { loadHubspotIntegrations, syncHubspot } from '@/lib/integrations/hubspot'
+import { advanceRunForBlock } from '@/lib/chains'
 import type { Db } from '@/lib/supabase/types'
 
 export const dynamic = 'force-dynamic'
@@ -65,6 +66,8 @@ async function closeOutStaleBlocks(supabase: Db, userId: string, now: Date) {
       .in('id', remaining)
       .eq('user_id', userId)
       .eq('status', 'planned')
+    // An unobserved link does not block its chain.
+    for (const id of remaining) await advanceRunForBlock(supabase, userId, id, now)
   }
   return { resolved: resolved.length, unobserved: remaining.length }
 }

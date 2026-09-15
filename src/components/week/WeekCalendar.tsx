@@ -36,6 +36,7 @@ export const KIND_STYLES: Record<WeekBlock['kind'], string> = {
   fixed: 'bg-ink-2 border-ink text-white',
   habit: 'bg-amber-100 border-amber-300 text-amber-900',
   chore: 'bg-rose-100 border-rose-300 text-rose-900',
+  free: 'bg-emerald-50 border-emerald-200 border-dashed text-emerald-800',
 }
 export const KIND_LABELS: Record<WeekBlock['kind'], string> = {
   goal: 'Goal work',
@@ -43,10 +44,34 @@ export const KIND_LABELS: Record<WeekBlock['kind'], string> = {
   fixed: 'Fixed',
   habit: 'Habit',
   chore: 'Chore',
+  free: 'Free',
 }
 
 function minutesBetween(a: Date, b: Date): number {
   return (b.getTime() - a.getTime()) / 60_000
+}
+
+/** "7 AM", "12 PM", "3 PM" for the hour gutter. */
+export function hourLabel(minutes: number): string {
+  const h = Math.floor(minutes / 60) % 24
+  const suffix = h < 12 ? 'AM' : 'PM'
+  const twelve = h % 12 === 0 ? 12 : h % 12
+  return `${twelve} ${suffix}`
+}
+
+const ROLE_BAND: Record<string, string> = {
+  rise: 'bg-amber-100/50 border-amber-200/70',
+  work: 'bg-brand-100/40 border-brand-200/70',
+  live: 'bg-emerald-100/40 border-emerald-200/70',
+  winddown: 'bg-indigo-100/40 border-indigo-200/70',
+  custom: 'bg-surface-3 border-line',
+}
+const ROLE_LABEL: Record<string, string> = {
+  rise: 'text-amber-800',
+  work: 'text-brand-700',
+  live: 'text-emerald-800',
+  winddown: 'text-indigo-800',
+  custom: 'text-ink-3',
 }
 
 function snap(minutes: number): number {
@@ -98,7 +123,7 @@ export function WeekCalendar({ week, onMove, onResize, onSelect, onAddAt, select
   const height = ((dayEndMinutes - dayStartMinutes) / 60) * PX_PER_HOUR
   const topOf = (d: Date) => ((localMinutes(d) - dayStartMinutes) / 60) * PX_PER_HOUR
   const heightOf = (a: Date, b: Date) => Math.max((minutesBetween(a, b) / 60) * PX_PER_HOUR, MIN_BLOCK_PX)
-  const clock = (d: Date) => formatInTimeZone(d, tz, 'H:mm')
+  const clock = (d: Date) => formatInTimeZone(d, tz, 'h:mm a')
 
   const ticks: number[] = []
   for (let m = Math.ceil(dayStartMinutes / 60) * 60; m < dayEndMinutes; m += 60) ticks.push(m)
@@ -219,6 +244,18 @@ export function WeekCalendar({ week, onMove, onResize, onSelect, onAddAt, select
   const now = new Date()
   const nowTop = ((localMinutes(now) - dayStartMinutes) / 60) * PX_PER_HOUR
 
+  // The lit link: the first planned block of the first unfinished run today.
+  const nextLinkId = useMemo(() => {
+    const today = days.find((d) => d.isToday)
+    if (!today) return null
+    const runs = (week.runs ?? []).filter((r) => r.date === today.date && r.status !== 'done').sort((a, b) => a.anchor_at.localeCompare(b.anchor_at))
+    for (const r of runs) {
+      const next = week.blocks.filter((b) => b.chain_run_id === r.id && b.status === 'planned').sort((a, b) => (a.link_position ?? 0) - (b.link_position ?? 0))[0]
+      if (next) return next.id
+    }
+    return null
+  }, [days, week.runs, week.blocks])
+
   return (
     <div className={cn('overflow-x-auto', className)}>
       <div className="min-w-[860px] select-none">
@@ -254,7 +291,7 @@ export function WeekCalendar({ week, onMove, onResize, onSelect, onAddAt, select
           <div className="relative">
             {ticks.map((m) => (
               <div key={m} className="absolute right-2 -translate-y-1/2 text-[10px] font-medium text-ink-4 tabular-nums" style={{ top: ((m - dayStartMinutes) / 60) * PX_PER_HOUR }}>
-                {String(Math.floor(m / 60)).padStart(2, '0')}:00
+                {hourLabel(m)}
               </div>
             ))}
           </div>
@@ -282,6 +319,19 @@ export function WeekCalendar({ week, onMove, onResize, onSelect, onAddAt, select
                 {/* Work window shading */}
                 <div className="absolute left-0 right-0 bg-white/70 pointer-events-none" style={{ top: topOf(d.workWindow.start), height: heightOf(d.workWindow.start, d.workWindow.end) }} />
 
+                {/* Chain bands: Rise / Work / Live / Wind down */}
+                {(week.runs ?? []).filter((r) => r.date === d.date).map((r) => {
+                  const start = new Date(r.anchor_at)
+                  const end = new Date(Math.max(new Date(r.end_at).getTime(), start.getTime() + 30 * 60_000))
+                  return (
+                    <div key={r.id} className={cn('absolute left-0.5 right-0.5 rounded-lg border pointer-events-none', ROLE_BAND[r.role] ?? ROLE_BAND.custom, r.status === 'done' && 'opacity-50')} style={{ top: topOf(start), height: heightOf(start, end) }}>
+                      <span className={cn('absolute -top-0 left-1.5 text-[9px] font-bold uppercase tracking-wider', ROLE_LABEL[r.role] ?? ROLE_LABEL.custom)}>
+                        {r.name}{r.started_at ? '' : r.status === 'done' ? ' ✓' : ''}
+                      </span>
+                    </div>
+                  )
+                })}
+
                 {/* Free gaps */}
                 {d.gaps.map((g) => (
                   <div key={g.start.getTime()} className="absolute left-1 right-1 rounded-lg border border-dashed border-brand-200/80 pointer-events-none" style={{ top: topOf(g.start), height: heightOf(g.start, g.end) }} />
@@ -301,7 +351,7 @@ export function WeekCalendar({ week, onMove, onResize, onSelect, onAddAt, select
 
                 {/* Blocks */}
                 {dayBlocks.map((b) => (
-                  <BlockView key={b.id} block={b} top={topOf(new Date(b.starts_at))} height={heightOf(new Date(b.starts_at), new Date(b.ends_at))} clock={clock} selected={selectedId === b.id} onBegin={begin} />
+                  <BlockView key={b.id} block={b} top={topOf(new Date(b.starts_at))} height={heightOf(new Date(b.starts_at), new Date(b.ends_at))} clock={clock} selected={selectedId === b.id} next={nextLinkId === b.id} onBegin={begin} />
                 ))}
 
                 {/* The block being dragged / resized, at its snapped destination */}
@@ -331,6 +381,7 @@ export function WeekCalendar({ week, onMove, onResize, onSelect, onAddAt, select
           ))}
           <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm border border-dashed border-brand-300" /> free</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-white border border-line" /> event</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm ring-2 ring-rose-400" /> next link</span>
           <span className="ml-auto">drag to move · drag the bottom edge to resize · click empty space to add</span>
         </div>
       </div>
@@ -346,6 +397,7 @@ function BlockView({
   selected,
   preview,
   previewLabel,
+  next,
   onBegin,
 }: {
   block: WeekBlock
@@ -355,6 +407,7 @@ function BlockView({
   selected?: boolean
   preview?: boolean
   previewLabel?: string
+  next?: boolean
   onBegin: (block: WeekBlock, mode: 'move' | 'resize', e: React.PointerEvent<HTMLElement>) => void
 }) {
   const start = new Date(block.starts_at)
@@ -370,13 +423,17 @@ function BlockView({
         KIND_STYLES[block.kind],
         resolved && 'opacity-60',
         block.status === 'done' && 'ring-2 ring-emerald-400',
+        next && !preview && 'ring-2 ring-offset-2 ring-rose-400 shadow-md',
         selected && !preview && 'ring-2 ring-offset-1 ring-ink',
         preview ? 'z-30 shadow-xl ring-2 ring-ink/40 opacity-95' : 'transition-[top,height] duration-150 ease-out z-10',
         block.status === 'planned' ? 'cursor-grab' : 'cursor-default'
       )}
       style={{ top, height }}
     >
-      <p className={cn('font-semibold leading-tight', compact ? 'text-[10px] truncate' : 'text-[11px] line-clamp-3')}>{block.title}</p>
+      <p className={cn('font-semibold leading-tight', compact ? 'text-[10px] truncate' : 'text-[11px] line-clamp-3')}>
+        {next && <span className="mr-1 inline-block rounded-sm bg-rose-500 px-1 text-[9px] font-bold uppercase text-white align-middle">next</span>}
+        {block.title}
+      </p>
       {!compact && (
         <p className="text-[10px] opacity-80 tabular-nums flex items-center gap-1">
           {previewLabel ?? `${clock(start)}–${clock(end)}`}

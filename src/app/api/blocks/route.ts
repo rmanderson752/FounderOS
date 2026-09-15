@@ -8,7 +8,7 @@ import { resolveCaller } from '@/lib/auth/request'
 import { getConnection } from '@/lib/calendar/google'
 import { todayIn } from '@/lib/calendar/day'
 
-const KINDS = new Set(['goal', 'flexible', 'fixed', 'habit', 'chore'])
+const KINDS = new Set(['goal', 'flexible', 'fixed', 'habit', 'chore', 'free'])
 
 interface Body {
   title?: string

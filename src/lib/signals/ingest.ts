@@ -10,6 +10,7 @@ import type { PlannerSignal } from '@/lib/planner/types'
 import type { Db } from '@/lib/supabase/types'
 import { todayIn } from '@/lib/calendar/day'
 import { projectForPath } from './attribute'
+import { advanceRunForBlock } from '@/lib/chains'
 
 export interface IncomingSignal {
   source: 'git' | 'session' | 'fs' | 'manual' | 'deploy' | 'crm'
@@ -221,6 +222,7 @@ export async function resolveAffectedBlocks(
       event_date: todayIn('America/New_York'),
       metadata: { block_id: block.id, status: verdict.status, by: 'observed', confidence: verdict.confidence, evidence: verdict.evidenceIds.length },
     })
+    await advanceRunForBlock(supabase, userId, block.id)
     results.push({ blockId: block.id, status: verdict.status, confidence: verdict.confidence })
   }
   return results

@@ -9,7 +9,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, CornerDownRight, Copy, Minus, RefreshCw } from 'lucide-react'
+import { Check, CornerDownRight, Copy, Minus, Play, RefreshCw } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import type { CardResponse } from '@/hooks/useCard'
 import { useResolveBlock } from '@/hooks/useCard'
@@ -22,10 +23,23 @@ interface StartCardProps {
 
 export function StartCard({ card, onRedirect, isRefreshing }: StartCardProps) {
   const resolve = useResolveBlock()
+  const queryClient = useQueryClient()
   const [note, setNote] = useState('')
   const [copied, setCopied] = useState(false)
 
   const block = card.block
+  const run = card.run ?? null
+  const startChain = useMutation({
+    mutationFn: async (runId: string) => {
+      const response = await fetch(`/api/chains/runs/${runId}/start`, { method: 'POST' })
+      if (!response.ok) throw new Error('Could not start the chain')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['card'] })
+      queryClient.invalidateQueries({ queryKey: ['week'] })
+    },
+  })
 
   const copyStart = async () => {
     if (!block?.startCommand) return
@@ -51,8 +65,25 @@ export function StartCard({ card, onRedirect, isRefreshing }: StartCardProps) {
         {card.text}
       </pre>
 
+      {run && (
+        <p className="mt-3 text-[11px] uppercase tracking-wider text-white/50 font-semibold">
+          {run.chainName} · link {run.position} of {run.count}{run.started ? '' : ' · not started'}
+        </p>
+      )}
+
       {block && (
         <div className="mt-5 pt-4 border-t border-white/10 flex flex-wrap items-center gap-2">
+          {run && !run.started && (
+            <button
+              type="button"
+              onClick={() => startChain.mutate(run.id)}
+              disabled={startChain.isPending}
+              className="inline-flex items-center gap-2 rounded-full bg-rose-500 text-white px-4 py-2 text-sm font-semibold hover:bg-rose-400 transition-colors disabled:opacity-60"
+            >
+              <Play className="w-4 h-4" strokeWidth={2.5} />
+              {run.role === 'rise' ? "I'm up — start Rise" : `Start ${run.chainName}`}
+            </button>
+          )}
           {block.startCommand && (
             <button
               type="button"

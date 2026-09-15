@@ -461,6 +461,19 @@ async function cmdNo(positional) {
   process.stdout.write(text)
 }
 
+async function cmdUp() {
+  // "I'm up": start the chain the card is pointing at (Rise in the morning).
+  const config = requireConfig()
+  const card = await api(config, `/api/card?cwd=${encodeURIComponent(process.cwd())}&source=hook`)
+  if (card.status !== 'ok' || !card.run) fail(card.text ?? 'no chain to start right now')
+  if (card.run.started) {
+    process.stdout.write(`${card.run.chainName} already started.\n`)
+    return
+  }
+  await api(config, `/api/chains/runs/${card.run.id}/start`, { method: 'POST', body: {} })
+  process.stdout.write(`${card.run.chainName} started. Next: ${card.block.deliverable}\n`)
+}
+
 async function cmdMilestoneDone() {
   const config = requireConfig()
   const card = await currentBlock(config)
@@ -643,7 +656,8 @@ function usage() {
   fos map "Name=/abs/path"               map a repo/folder, install post-commit hook
   fos start [--cwd DIR]                  print the Start Card now
   fos goal "…" --by YYYY-MM-DD [--project N] [--yes]
-  fos done | partial | skip              resolve the current block yourself
+  fos up                                 "I'm up": start the current chain (Rise in the morning)
+  fos done | partial | skip              resolve the current link yourself
   fos no "what to do instead"            redirect: a fresh card
   fos milestone done                     advance the ladder now
   fos pause <project> | resume <project>
@@ -671,6 +685,7 @@ async function main() {
     case 'partial': return cmdResolve('partial', positional.join(' ') || undefined)
     case 'skip': return cmdResolve('skipped', positional.join(' ') || undefined)
     case 'no': return cmdNo(positional)
+    case 'up': return cmdUp()
     case 'milestone': return positional[0] === 'done' ? cmdMilestoneDone() : usage()
     case 'pause': return cmdPause(positional, true)
     case 'resume': return cmdPause(positional, false)

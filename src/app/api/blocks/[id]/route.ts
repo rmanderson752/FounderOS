@@ -11,6 +11,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveCaller } from '@/lib/auth/request'
 import { todayIn } from '@/lib/calendar/day'
+import { advanceRunForBlock } from '@/lib/chains'
+import { replanWeek } from '@/lib/week/plan'
 
 const STATUSES = new Set(['planned', 'done', 'partial', 'skipped', 'unobserved'])
 
@@ -25,7 +27,7 @@ interface Body {
   rationale?: string | null
 }
 
-const KINDS = new Set(['goal', 'flexible', 'fixed', 'habit', 'chore'])
+const KINDS = new Set(['goal', 'flexible', 'fixed', 'habit', 'chore', 'free'])
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const caller = await resolveCaller(request)
@@ -105,7 +107,20 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     ...writes,
   ])
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true, id: block.id, ...update })
+
+  // A resolved link advances its chain and shifts the rest of the chain to now.
+  let run: { runId: string; done: boolean } | null = null
+  if (body.status && body.status !== 'planned') {
+    run = await advanceRunForBlock(caller.supabase, caller.userId, block.id)
+    if (run) {
+      try {
+        await replanWeek({ supabase: caller.supabase, userId: caller.userId, origin: new URL(request.url).origin })
+      } catch (e) {
+        console.error('Relay after link resolve failed:', e)
+      }
+    }
+  }
+  return NextResponse.json({ ok: true, id: block.id, ...update, run })
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {

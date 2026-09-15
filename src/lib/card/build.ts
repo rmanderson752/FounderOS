@@ -19,6 +19,7 @@ import { observedPace, paceLine, remainingMinutes } from '@/lib/planner/capacity
 import type { Candidate, CardWindow, PlannerMilestone, PlannerOutcome, PlannerSignal } from '@/lib/planner/types'
 import { runCardTurn } from './turn'
 import { projectForPath } from '@/lib/signals/attribute'
+import { chainCard, type ChainCard } from './chain'
 import { readUsage, overCeiling, recordUsage } from './usage'
 import { CARD_MODEL, usdFor } from './anthropic'
 import { observedLine, renderCard, type CardData } from './render'
@@ -56,13 +57,15 @@ export type BuildResult =
         status: string
         startCommand: string | null
         expectedPaths: string[]
+        kind?: string
       }
       outcome: { id: string; title: string; projectName: string | null }
       milestone: { id: string; title: string; index: number; count: number } | null
-      source: 'model' | 'fallback' | 'existing'
+      source: 'model' | 'fallback' | 'existing' | 'chain'
       disagreement: string | null
       ranked: { outcomeId: string; title: string; score: number }[]
       calendarConnected: boolean
+      run?: ChainCard['run'] | null
     }
 
 interface ProjectRow {
@@ -251,6 +254,27 @@ export async function buildCard(input: BuildInput): Promise<BuildResult> {
     return !p?.paused
   })
   const signals = ((signalsRes.data ?? []) as SignalRow[]).map(toPlannerSignal)
+
+  // Today laid out as chains: the card is the next link, no model turn.
+  if (!input.userNote) {
+    const chained = await chainCard({ supabase, userId, today, timeZone, now, signals, projects })
+    if (chained) {
+      return {
+        status: 'ok',
+        text: chained.text,
+        day,
+        window,
+        block: chained.block,
+        outcome: chained.outcome ?? { id: '', title: chained.run.chainName, projectName: null },
+        milestone: chained.milestone ? { id: chained.milestone.id, title: chained.milestone.title, index: 0, count: 0 } : null,
+        source: 'chain',
+        disagreement: null,
+        ranked: [],
+        calendarConnected: !!connection,
+        run: chained.run,
+      }
+    }
+  }
 
   if (outcomeRows.length === 0) return { status: 'no_outcomes', day, window }
 

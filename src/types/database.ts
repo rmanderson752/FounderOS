@@ -1,11 +1,15 @@
 /** plan_blocks.status. 'unobserved' means no evidence arrived; it is never 'skipped' by default. */
 export type BlockStatus = 'planned' | 'done' | 'partial' | 'skipped' | 'unobserved'
 /** plan_blocks.kind. 'goal' is work toward a milestone; the rest come from commitments. */
-export type BlockKind = 'goal' | 'flexible' | 'fixed' | 'habit' | 'chore'
+export type BlockKind = 'goal' | 'flexible' | 'fixed' | 'habit' | 'chore' | 'free'
 export type BlockSource = 'planner' | 'card' | 'user' | 'agent'
 /** outcomes.status. 'draft' exists from the first message of a goal thread until the ladder is accepted. */
 export type OutcomeStatus = 'draft' | 'active' | 'paused' | 'done' | 'abandoned'
 export type CommitmentKind = 'flexible' | 'fixed' | 'habit' | 'chore'
+export type ChainRole = 'rise' | 'work' | 'live' | 'winddown' | 'custom'
+export type ChainAnchor = 'trigger' | 'after_previous' | 'clock' | 'before_bed'
+export type ChainLinkKind = 'habit' | 'fixed' | 'flexible' | 'goal' | 'chore' | 'free'
+export type ChainRunStatus = 'planned' | 'active' | 'done' | 'abandoned'
 
 export type Json =
   | string
@@ -35,6 +39,8 @@ export interface Database {
           hook_token_hash: string | null
           /** IANA zone. Falls back to the calendar connection's zone, then America/New_York. */
           timezone: string | null
+          wake_time: string | null
+          bed_time: string | null
         }
         Insert: {
           id: string
@@ -49,6 +55,8 @@ export interface Database {
           updated_at?: string
           hook_token_hash?: string | null
           timezone?: string | null
+          wake_time?: string | null
+          bed_time?: string | null
         }
         Update: {
           id?: string
@@ -63,6 +71,8 @@ export interface Database {
           updated_at?: string
           hook_token_hash?: string | null
           timezone?: string | null
+          wake_time?: string | null
+          bed_time?: string | null
         }
       }
       goals: {
@@ -652,6 +662,9 @@ export interface Database {
           commitment_id: string | null
           locked: boolean
           source: BlockSource
+          chain_run_id: string | null
+          chain_link_id: string | null
+          link_position: number | null
         }
         Insert: {
           id?: string
@@ -677,6 +690,9 @@ export interface Database {
           commitment_id?: string | null
           locked?: boolean
           source?: BlockSource
+          chain_run_id?: string | null
+          chain_link_id?: string | null
+          link_position?: number | null
         }
         Update: {
           outcome_id?: string | null
@@ -699,6 +715,9 @@ export interface Database {
           commitment_id?: string | null
           locked?: boolean
           source?: BlockSource
+          chain_run_id?: string | null
+          chain_link_id?: string | null
+          link_position?: number | null
         }
       }
       agent_messages: {
@@ -923,6 +942,120 @@ export interface Database {
           notes?: string | null
         }
       }
+      chains: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          role: ChainRole
+          position: number
+          anchor_kind: ChainAnchor
+          anchor_time: string | null
+          target_minutes: number | null
+          days_of_week: number[]
+          plannable: boolean
+          protected: boolean
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          role?: ChainRole
+          position?: number
+          anchor_kind?: ChainAnchor
+          anchor_time?: string | null
+          target_minutes?: number | null
+          days_of_week?: number[]
+          plannable?: boolean
+          protected?: boolean
+          active?: boolean
+        }
+        Update: {
+          name?: string
+          role?: ChainRole
+          position?: number
+          anchor_kind?: ChainAnchor
+          anchor_time?: string | null
+          target_minutes?: number | null
+          days_of_week?: number[]
+          plannable?: boolean
+          protected?: boolean
+          active?: boolean
+        }
+      }
+      chain_links: {
+        Row: {
+          id: string
+          user_id: string
+          chain_id: string
+          position: number
+          title: string
+          kind: ChainLinkKind
+          duration_minutes: number
+          commitment_id: string | null
+          days_of_week: number[] | null
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          chain_id: string
+          position?: number
+          title: string
+          kind?: ChainLinkKind
+          duration_minutes?: number
+          commitment_id?: string | null
+          days_of_week?: number[] | null
+          active?: boolean
+        }
+        Update: {
+          position?: number
+          title?: string
+          kind?: ChainLinkKind
+          duration_minutes?: number
+          commitment_id?: string | null
+          days_of_week?: number[] | null
+          active?: boolean
+        }
+      }
+      chain_runs: {
+        Row: {
+          id: string
+          user_id: string
+          chain_id: string
+          run_date: string
+          anchor_at: string
+          started_at: string | null
+          completed_at: string | null
+          current_position: number
+          status: ChainRunStatus
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          chain_id: string
+          run_date: string
+          anchor_at: string
+          started_at?: string | null
+          completed_at?: string | null
+          current_position?: number
+          status?: ChainRunStatus
+        }
+        Update: {
+          anchor_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+          current_position?: number
+          status?: ChainRunStatus
+        }
+      }
       integrations: {
         Row: {
           id: string
@@ -1017,3 +1150,6 @@ export type Signal = Database['public']['Tables']['signals']['Row']
 export type ResolutionCorrection = Database['public']['Tables']['resolution_corrections']['Row']
 export type Commitment = Database['public']['Tables']['commitments']['Row']
 export type Integration = Database['public']['Tables']['integrations']['Row']
+export type Chain = Database['public']['Tables']['chains']['Row']
+export type ChainLink = Database['public']['Tables']['chain_links']['Row']
+export type ChainRun = Database['public']['Tables']['chain_runs']['Row']

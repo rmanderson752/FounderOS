@@ -137,3 +137,42 @@ Google Cloud console session before the product does anything.
 - Rotation: kept goal blocks now count toward the rotation decay.
 - Calendar grid now stretches to include blocks outside the work window
   (gym at 7am).
+
+## 2026-09-15 — Habit chains, not time blocks (D15)
+
+**Ryan's premise.** "Time blocking is what all these brands do. Habit
+blocking is the unique premise: gym, and gym allows you to X, then X allows
+you to Y." It answers the first thing he ever said about the problem — that
+"I need to get work done" is impossible to start — where a slot at 9:30 does
+not: the chain is the on-ramp, and the deliverable is the last link.
+
+**Decision.** The day is four chains, in his shape: **Rise** (after waking;
+habit links; flows into Work), **Work** (a 6–8h *ceiling*, not a target; the
+only chain the planner packs — goal slots filled from the ladders, chores,
+flexible commitments; whitespace stays), **Live** (4–5h; protected — the
+planner never adds anything; at most one link he chooses; the calendar
+draws a band, not tasks), **Wind down** (30–60 min laid backward from
+bedtime; ends with tomorrow's card). A chain is ordered links with
+durations; only its anchor is on the clock (a trigger with a clock
+fallback, the previous chain's end, a clock time, or bedtime). Every later
+link's time is derived. A calendar event splits a chain and it resumes
+after. Finishing a link lights the next; a late start shifts the chain
+instead of "missing" it. Unlocking is soft: the whole day is visible, the
+next link is lit.
+
+**What changed in the code.** Migration 008 (chains, chain_links,
+chain_runs; block kind 'free'; wake/bed times). `lib/planner/chain.ts` lays
+a day (pure, 10 tests). The week planner lays chains instead of packing
+slots; existing commitments seed the default chains (gym → Rise). The card
+is the next link of the chain you are in — no model turn when chains
+exist. Resolving a link (tap, commit, cron close-out) advances its run and
+re-lays the rest of the day from now. The calendar draws chain bands and
+lights the next link; the clock is 12-hour. `/day` edits the template;
+the planner thread understands "my morning is gym, shower, then coffee",
+"add stretching after gym", "Work is 6 hours", "I'm up". `fos up` starts
+the chain from the terminal.
+
+**Guardrails carried from the discussion.** Work's ceiling is enforced by
+the planner and the fill ratio (70%) keeps whitespace; Live is `protected`
+in the schema and the tools refuse to plan into it unless the user names
+it.

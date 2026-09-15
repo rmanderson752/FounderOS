@@ -12,6 +12,7 @@ import { Avatar } from '@/components/ui'
 import {
   Activity,
   Flag,
+  Link2,
   LayoutDashboard,
   Settings,
   LogOut,
@@ -34,6 +35,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 // and load by direct URL — removed from navigation, not deleted (DECISIONS D7).
 const navigation = [
   { name: 'Today', href: '/', icon: LayoutDashboard },
+  { name: 'Your day', href: '/day', icon: Link2 },
   { name: 'Goals', href: '/goals', icon: Flag },
   { name: 'Signals', href: '/signals', icon: Activity },
 ]

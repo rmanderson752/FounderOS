@@ -13,6 +13,7 @@ export interface CardBlock {
   status: string
   startCommand: string | null
   expectedPaths: string[]
+  kind?: string
 }
 
 export interface CardResponse {
@@ -25,8 +26,9 @@ export interface CardResponse {
   block?: CardBlock
   outcome?: { id: string; title: string; projectName: string | null }
   milestone?: { id: string; title: string; index: number; count: number } | null
-  source?: 'model' | 'fallback' | 'existing'
+  source?: 'model' | 'fallback' | 'existing' | 'chain'
   disagreement?: string | null
+  run?: { id: string; chainName: string; role: string; started: boolean; position: number; count: number } | null
 }
 
 function reviveDay(day: DayCalendar | undefined): DayCalendar | undefined {

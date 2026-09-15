@@ -11,14 +11,18 @@ import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 import type { Db } from '@/lib/supabase/types'
 import { loadWeek, replanWeek, type WeekView } from '@/lib/week/plan'
 import { upsertCommitment } from '@/lib/week/commitments'
+import { loadDayTemplate, startRun } from '@/lib/chains'
 
-export const WEEK_SYSTEM_PROMPT = `You adjust a solo founder's week on their calendar. You receive the week as it stands: each day's events, free gaps, and the planned blocks (goal work, recurring commitments, habits, chores) with their ids and times, plus the founder's commitments.
+export const WEEK_SYSTEM_PROMPT = `You adjust a solo founder's week. Their day is chains, not slots: Rise (after waking, habit links), Work (a ceiling, the only chain the planner fills with goal work), Live (protected — nothing is ever planned into it), Wind down (before bed). A chain is ordered links with durations; only its anchor is on the clock, every later link's time is derived, and finishing a link lights the next. You receive the day template (chains and links), today's runs and where they stand, each day's events, and the planned blocks with ids and times.
 
 Do what they ask with the tools, then confirm in one short sentence. Times are in the founder's timezone. Rules:
-- Move, resize, add or remove blocks only as asked; never rearrange the rest of the week on your own.
-- A block must sit inside the day's free time; if the requested slot collides with an event or another block, say so and offer the nearest free slot instead of forcing it.
-- When they describe something recurring ("every Tuesday", "Mon/Wed/Fri at 7"), record it with add_commitment and then call replan_week so it lands on the calendar.
-- "Plan my week" / "re-plan" → replan_week.
+- "My morning is gym, shower, then coffee" / "add stretching after gym" / "drop LeetCode" → edit the chain's links (set_chain_links, add_link, remove_link), then replan_week so the calendar reflects it.
+- "Work is 6 hours" / "Rise starts at 6:30" / "bed at 11" → update_chain, then replan_week.
+- "I'm up" / "starting work now" → start_chain for today's run of that chain.
+- Move, resize, add or remove blocks only as asked; never rearrange the rest of the week on your own. A moved block is locked.
+- If a requested slot collides with an event or another block, say so and offer the nearest free slot.
+- Something recurring that is not part of a chain ("outreach 90 min on Tuesdays") → add_commitment, then replan_week; the planner places it in Work.
+- Never add anything to Live unless the user names Live explicitly.
 - Marking work done or skipped → resolve_block.
 - Under 60 words. No lists unless they ask what is on a day.`
 
@@ -196,6 +200,109 @@ export function weekTools(ctx: WeekThreadContext) {
     },
   })
 
+  // ---- chains -----------------------------------------------------------------
+  const LinkInput = z.object({
+    title: z.string(),
+    kind: z.enum(['habit', 'fixed', 'flexible', 'goal', 'chore', 'free']).describe('goal = a deep-work slot the planner fills; free = unplanned time'),
+    minutes: z.number().int().min(5).max(480),
+  })
+  const findChain = async (ref: string) => {
+    const t = await loadDayTemplate(supabase, userId)
+    const r = ref.trim().toLowerCase()
+    return { template: t, chain: t.chains.find((c) => c.role === r || c.name.toLowerCase() === r) ?? t.chains.find((c) => c.name.toLowerCase().includes(r)) ?? null }
+  }
+
+  const setChainLinks = betaZodTool({
+    name: 'set_chain_links',
+    description: 'Replace all links of a chain with an ordered list ("my morning is gym, shower, then coffee and LeetCode"). Chain is referenced by role (rise, work, live, winddown) or name.',
+    inputSchema: z.object({ chain: z.string(), links: z.array(LinkInput).min(0).max(20) }),
+    run: async (input) => {
+      const { chain } = await findChain(input.chain)
+      if (!chain) return `REJECTED: no chain "${input.chain}".`
+      await supabase.from('chain_links').delete().eq('user_id', userId).eq('chain_id', chain.id)
+      if (input.links.length > 0) {
+        const { error } = await supabase.from('chain_links').insert(input.links.map((l, i) => ({ user_id: userId, chain_id: chain.id, position: i, title: l.title, kind: l.kind, duration_minutes: l.minutes })))
+        if (error) return `ERROR: ${error.message}`
+      }
+      return `${chain.name} is now: ${input.links.map((l) => `${l.title} (${l.minutes}m)`).join(' → ') || 'empty'}. Call replan_week.`
+    },
+  })
+
+  const addLink = betaZodTool({
+    name: 'add_link',
+    description: 'Insert a link into a chain, after a named link or at the end.',
+    inputSchema: z.object({ chain: z.string(), link: LinkInput, after: z.string().nullable().describe('title of the link to insert after; null = end') }),
+    run: async (input) => {
+      const { template, chain } = await findChain(input.chain)
+      if (!chain) return `REJECTED: no chain "${input.chain}".`
+      const links = template.links.filter((l) => l.chainId === chain.id).sort((a, b) => a.position - b.position)
+      let at = links.length
+      if (input.after) {
+        const idx = links.findIndex((l) => l.title.toLowerCase().includes(input.after!.toLowerCase()))
+        if (idx >= 0) at = idx + 1
+      }
+      await Promise.all(links.slice(at).map((l) => supabase.from('chain_links').update({ position: l.position + 1 }).eq('id', l.id)))
+      const { error } = await supabase.from('chain_links').insert({ user_id: userId, chain_id: chain.id, position: at, title: input.link.title, kind: input.link.kind, duration_minutes: input.link.minutes })
+      return error ? `ERROR: ${error.message}` : `Added "${input.link.title}" to ${chain.name} at position ${at + 1}. Call replan_week.`
+    },
+  })
+
+  const removeLink = betaZodTool({
+    name: 'remove_link',
+    description: 'Remove a link from a chain by title.',
+    inputSchema: z.object({ chain: z.string(), title: z.string() }),
+    run: async (input) => {
+      const { template, chain } = await findChain(input.chain)
+      if (!chain) return `REJECTED: no chain "${input.chain}".`
+      const target = template.links.find((l) => l.chainId === chain.id && l.title.toLowerCase().includes(input.title.toLowerCase()))
+      if (!target) return `REJECTED: no link matching "${input.title}" in ${chain.name}.`
+      await supabase.from('chain_links').delete().eq('id', target.id).eq('user_id', userId)
+      const rest = template.links.filter((l) => l.chainId === chain.id && l.id !== target.id).sort((a, b) => a.position - b.position)
+      await Promise.all(rest.map((l, i) => supabase.from('chain_links').update({ position: i }).eq('id', l.id)))
+      return `Removed "${target.title}" from ${chain.name}. Call replan_week.`
+    },
+  })
+
+  const updateChain = betaZodTool({
+    name: 'update_chain',
+    description: "Change a chain's anchor time (HH:mm), anchor kind, ceiling in minutes, or days.",
+    inputSchema: z.object({
+      chain: z.string(),
+      anchor_time: z.string().nullable(),
+      anchor_kind: z.enum(['trigger', 'after_previous', 'clock', 'before_bed']).nullable(),
+      target_minutes: z.number().int().min(15).max(960).nullable(),
+      days: DaysInput.nullable(),
+    }),
+    run: async (input) => {
+      const { chain } = await findChain(input.chain)
+      if (!chain) return `REJECTED: no chain "${input.chain}".`
+      const patch: Record<string, unknown> = {}
+      if (input.anchor_time) patch.anchor_time = input.anchor_time
+      if (input.anchor_kind) patch.anchor_kind = input.anchor_kind
+      if (input.target_minutes !== null) patch.target_minutes = input.target_minutes
+      if (input.days) patch.days_of_week = toDayNumbers(input.days)
+      if (Object.keys(patch).length === 0) return 'Nothing to change.'
+      const { error } = await supabase.from('chains').update(patch).eq('id', chain.id).eq('user_id', userId)
+      return error ? `ERROR: ${error.message}` : `${chain.name} updated. Call replan_week.`
+    },
+  })
+
+  const startChain = betaZodTool({
+    name: 'start_chain',
+    description: "Start today's run of a chain now (\"I'm up\", \"starting work\"). Its remaining links are re-laid from this moment.",
+    inputSchema: z.object({ chain: z.string() }),
+    run: async (input) => {
+      const { chain } = await findChain(input.chain)
+      if (!chain) return `REJECTED: no chain "${input.chain}".`
+      const { data: run } = await supabase.from('chain_runs').select('id, started_at').eq('user_id', userId).eq('chain_id', chain.id).eq('run_date', ctx.today).maybeSingle()
+      if (!run) return `REJECTED: ${chain.name} has no run today (it may not run on this weekday, or the week is not planned yet — call replan_week first).`
+      if (run.started_at) return `${chain.name} already started.`
+      await startRun(supabase, userId, run.id)
+      await replanWeek({ supabase, userId, origin: ctx.origin })
+      return `${chain.name} started now; the rest of the chain shifted to follow.`
+    },
+  })
+
   const replan = betaZodTool({
     name: 'replan_week',
     description: 'Re-plan the provisional part of this week from goals and commitments. Locked and resolved blocks stay.',
@@ -207,10 +314,10 @@ export function weekTools(ctx: WeekThreadContext) {
     },
   })
 
-  return [moveBlock, removeBlock, addBlock, resolveBlock, addCommitment, removeCommitment, replan]
+  return [moveBlock, removeBlock, addBlock, resolveBlock, addCommitment, removeCommitment, setChainLinks, addLink, removeLink, updateChain, startChain, replan]
 }
 
-export function weekStateBlock(week: WeekView, today: string): string {
+export function weekStateBlock(week: WeekView, today: string, template?: { links: Array<{ chainId: string; title: string; kind: string; durationMinutes: number; position: number }> }): string {
   const tz = week.timeZone
   const clock = (iso: string | Date) => formatInTimeZone(new Date(iso), tz, 'H:mm')
   const days = (week.calendar ?? []).map((d) => ({
@@ -227,6 +334,17 @@ export function weekStateBlock(week: WeekView, today: string): string {
     today,
     timezone: tz,
     week_start: week.weekStart,
+    chains: week.chains.map((c) => ({
+      name: c.name,
+      role: c.role,
+      anchor: c.anchor_kind === 'before_bed' ? `ends at ${c.anchor_time ?? 'bedtime'}` : `${c.anchor_kind}${c.anchor_time ? ` ${c.anchor_time}` : ''}`,
+      ceiling_minutes: c.target_minutes,
+      days_of_week: c.days_of_week,
+      plannable: c.plannable,
+      protected: c.protected,
+      links: (template?.links ?? []).filter((l) => l.chainId === c.id).sort((a, b) => a.position - b.position).map((l) => `${l.title} [${l.kind}, ${l.durationMinutes}m]`),
+    })),
+    today_runs: week.runs.filter((r) => r.date === today).map((r) => ({ chain: r.name, status: r.status, started: !!r.started_at, anchor: clock(r.anchor_at), ends: clock(r.end_at), next_link_position: r.current_position + 1 })),
     days,
     commitments: week.commitments.map((c) => ({ title: c.title, kind: c.kind, days_of_week: c.days_of_week, duration_minutes: c.duration_minutes, fixed: c.fixed_start ? `${c.fixed_start.slice(0, 5)}–${c.fixed_end?.slice(0, 5)}` : null, due_date: c.due_date })),
     goals: week.outcomes.map((o) => `${o.projectName ?? '—'} → ${o.title} (${o.status})`),

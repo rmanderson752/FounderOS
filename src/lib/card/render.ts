@@ -50,7 +50,7 @@ function shortDate(date: string): string {
 }
 
 export function renderCard(card: CardData): string {
-  const clock = (d: Date) => formatInTimeZone(d, card.timeZone, 'H:mm')
+  const clock = (d: Date) => formatInTimeZone(d, card.timeZone, 'h:mm a')
   const lines: string[] = []
 
   const chain = [

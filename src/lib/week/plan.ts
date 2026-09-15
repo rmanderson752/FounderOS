@@ -16,15 +16,14 @@ import type { Db } from '@/lib/supabase/types'
 import { getConnection } from '@/lib/calendar/google'
 import { buildWeekCalendar, addDays, type WeekCalendar } from '@/lib/calendar/week'
 import { todayIn } from '@/lib/calendar/day'
-import { planWeek, type KeptBlock, type PlannerCommitment } from '@/lib/planner/week'
 import type { PlannerMilestone, PlannerOutcome } from '@/lib/planner/types'
-import { loadSignals } from '@/lib/goals/ladder'
+import { ensureDefaultChains, planDaysAsChains, type ExistingBlock } from '@/lib/chains'
 import { weekStartOf } from '@/lib/card/build'
 
 export interface WeekBlock {
   id: string
   date: string
-  kind: 'goal' | 'flexible' | 'fixed' | 'habit' | 'chore'
+  kind: 'goal' | 'flexible' | 'fixed' | 'habit' | 'chore' | 'free'
   title: string
   rationale: string | null
   starts_at: string
@@ -37,6 +36,37 @@ export interface WeekBlock {
   commitment_id: string | null
   project_id: string | null
   start_command: string | null
+  chain_run_id: string | null
+  chain_link_id: string | null
+  link_position: number | null
+}
+
+export interface ChainRunView {
+  id: string
+  chain_id: string
+  name: string
+  role: 'rise' | 'work' | 'live' | 'winddown' | 'custom'
+  date: string
+  anchor_at: string
+  started_at: string | null
+  completed_at: string | null
+  current_position: number
+  status: 'planned' | 'active' | 'done' | 'abandoned'
+  /** Derived: end of the last block in the run, or the anchor when empty. */
+  end_at: string
+}
+
+export interface ChainView {
+  id: string
+  name: string
+  role: 'rise' | 'work' | 'live' | 'winddown' | 'custom'
+  position: number
+  anchor_kind: 'trigger' | 'after_previous' | 'clock' | 'before_bed'
+  anchor_time: string | null
+  target_minutes: number | null
+  days_of_week: number[]
+  plannable: boolean
+  protected: boolean
 }
 
 export interface DueChip {
@@ -70,6 +100,8 @@ export interface WeekView {
   due: DueChip[]
   commitments: CommitmentRow[]
   outcomes: { id: string; title: string; projectName: string | null; status: string }[]
+  runs: ChainRunView[]
+  chains: ChainView[]
   notes: string[]
 }
 
@@ -94,11 +126,14 @@ function toWeekBlock(b: BlockRow, timeZone: string): WeekBlock {
     commitment_id: b.commitment_id,
     project_id: b.project_id,
     start_command: b.start_command,
+    chain_run_id: b.chain_run_id ?? null,
+    chain_link_id: b.chain_link_id ?? null,
+    link_position: b.link_position ?? null,
   }
 }
 
 const BLOCK_COLUMNS =
-  'id, deliverable, rationale, starts_at, ends_at, status, locked, source, kind, outcome_id, milestone_id, commitment_id, project_id, start_command'
+  'id, deliverable, rationale, starts_at, ends_at, status, locked, source, kind, outcome_id, milestone_id, commitment_id, project_id, start_command, chain_run_id, chain_link_id, link_position'
 
 async function loadBlocks(supabase: Db, userId: string, from: Date, to: Date, timeZone: string): Promise<WeekBlock[]> {
   const { data } = await supabase
@@ -125,15 +160,24 @@ export async function loadWeek(input: { supabase: Db; userId: string; origin: st
   const to = new Date(calendar.days[6].workWindow.end.getTime() + 12 * 3600_000)
   const weekEnd = addDays(weekStart, 6)
 
-  const [blocks, commitmentsRes, outcomesRes, milestonesRes, projectsRes] = await Promise.all([
+  const [blocks, commitmentsRes, outcomesRes, milestonesRes, projectsRes, runsRes, chainsRes] = await Promise.all([
     loadBlocks(supabase, userId, new Date(from.getTime() - 12 * 3600_000), to, timeZone),
     supabase.from('commitments').select('id, title, kind, days_of_week, duration_minutes, fixed_start, fixed_end, due_date, active, project_id, outcome_id').eq('user_id', userId).eq('active', true).order('created_at'),
     supabase.from('outcomes').select('id, title, target_date, status, project_id').eq('user_id', userId).in('status', ['active', 'draft']),
     supabase.from('milestones').select('id, outcome_id, title, expected_by, status').eq('user_id', userId).not('expected_by', 'is', null).gte('expected_by', weekStart).lte('expected_by', weekEnd),
     supabase.from('projects').select('id, name').eq('user_id', userId),
+    supabase.from('chain_runs').select('id, chain_id, run_date, anchor_at, started_at, completed_at, current_position, status').eq('user_id', userId).gte('run_date', weekStart).lte('run_date', weekEnd),
+    supabase.from('chains').select('id, name, role, position, anchor_kind, anchor_time, target_minutes, days_of_week, plannable, protected').eq('user_id', userId).eq('active', true).order('position'),
   ])
 
   const projects = (projectsRes.data ?? []) as { id: string; name: string }[]
+  const chains = ((chainsRes.data ?? []) as Array<Omit<ChainView, 'anchor_time'> & { anchor_time: string | null }>).map((c) => ({ ...c, anchor_time: c.anchor_time ? c.anchor_time.slice(0, 5) : null }))
+  const runs: ChainRunView[] = ((runsRes.data ?? []) as Array<{ id: string; chain_id: string; run_date: string; anchor_at: string; started_at: string | null; completed_at: string | null; current_position: number; status: ChainRunView['status'] }>).map((r) => {
+    const chain = chains.find((c) => c.id === r.chain_id)
+    const own = blocks.filter((b) => b.chain_run_id === r.id)
+    const end = own.length ? own.reduce((m, b) => (b.ends_at > m ? b.ends_at : m), own[0].ends_at) : r.anchor_at
+    return { id: r.id, chain_id: r.chain_id, name: chain?.name ?? 'Chain', role: chain?.role ?? 'custom', date: r.run_date, anchor_at: r.anchor_at, started_at: r.started_at, completed_at: r.completed_at, current_position: r.current_position, status: r.status, end_at: end }
+  })
   const outcomes = (outcomesRes.data ?? []) as { id: string; title: string; target_date: string | null; status: string; project_id: string | null }[]
   const due: DueChip[] = []
   for (const o of outcomes) {
@@ -155,6 +199,8 @@ export async function loadWeek(input: { supabase: Db; userId: string; origin: st
     due,
     commitments: (commitmentsRes.data ?? []) as CommitmentRow[],
     outcomes: outcomes.map((o) => ({ id: o.id, title: o.title, status: o.status, projectName: projects.find((p) => p.id === o.project_id)?.name ?? null })),
+    runs,
+    chains,
     notes: input.notes ?? [],
   }
 }
@@ -176,12 +222,11 @@ export async function replanWeek(input: { supabase: Db; userId: string; origin: 
   const from = new Date(calendar.days[0].workWindow.start.getTime() - 12 * 3600_000)
   const to = new Date(calendar.days[6].workWindow.end.getTime() + 12 * 3600_000)
 
-  const [existing, commitmentsRes, outcomesRes, projectsRes, signals] = await Promise.all([
+  const [existing, commitmentsRes, outcomesRes, projectsRes] = await Promise.all([
     loadBlocks(supabase, userId, from, to, timeZone),
     supabase.from('commitments').select('id, title, kind, days_of_week, duration_minutes, fixed_start, fixed_end, due_date, active, project_id, outcome_id').eq('user_id', userId).eq('active', true),
     supabase.from('outcomes').select('id, title, project_id, weight, target_date, status').eq('user_id', userId).eq('status', 'active'),
     supabase.from('projects').select('id, name, paused').eq('user_id', userId),
-    loadSignals(supabase, userId),
   ])
 
   const projects = (projectsRes.data ?? []) as { id: string; name: string; paused: boolean }[]
@@ -197,65 +242,29 @@ export async function replanWeek(input: { supabase: Db; userId: string; origin: 
     candidates: Array.isArray(m.candidates) ? (m.candidates as PlannerMilestone['candidates']) : [],
   }))
 
-  const commitments: PlannerCommitment[] = ((commitmentsRes.data ?? []) as CommitmentRow[]).map((c) => ({
-    id: c.id, title: c.title, kind: c.kind, daysOfWeek: c.days_of_week ?? [], durationMinutes: c.duration_minutes, fixedStart: c.fixed_start?.slice(0, 5) ?? null, fixedEnd: c.fixed_end?.slice(0, 5) ?? null, dueDate: c.due_date, projectId: c.project_id, outcomeId: c.outcome_id,
-  }))
+  await ensureDefaultChains(supabase, userId)
 
   // What stays vs. what the planner may replace.
-  const keep = (b: WeekBlock) => b.locked || b.status !== 'planned' || new Date(b.starts_at) <= now || b.source === 'user' || b.source === 'agent'
-  const kept: KeptBlock[] = existing.filter(keep).map((b) => ({ id: b.id, date: b.date, kind: b.kind, commitmentId: b.commitment_id, outcomeId: b.outcome_id, title: b.title, start: new Date(b.starts_at), end: new Date(b.ends_at) }))
-  const replaceIds = existing.filter((b) => !keep(b)).map((b) => b.id)
+  const keep = (b: ExistingBlock) => b.locked || b.status !== 'planned' || new Date(b.starts_at) <= now || b.source === 'user' || b.source === 'agent'
+  const existingRows: ExistingBlock[] = existing.map((b) => ({
+    id: b.id, date: b.date, kind: b.kind, status: b.status, locked: b.locked, source: b.source, starts_at: b.starts_at, ends_at: b.ends_at, deliverable: b.title, commitment_id: b.commitment_id, chain_run_id: b.chain_run_id, chain_link_id: b.chain_link_id, link_position: b.link_position, outcome_id: b.outcome_id,
+  }))
 
-  const plan = planWeek({
-    days: calendar.days.filter((d) => !d.isPast).map((d) => ({ date: d.date, weekday: d.weekday, workWindow: d.workWindow, gaps: d.gaps, available: d.available })),
-    timeZone, today, now, commitments, outcomes, milestones, signals, kept,
+  const plan = await planDaysAsChains({
+    supabase, userId, timeZone, now, today, weekStart,
+    days: calendar.days,
+    existing: existingRows,
+    keep,
+    outcomes,
+    milestones,
+    commitments: (commitmentsRes.data ?? []) as CommitmentRow[],
   })
-
-  if (replaceIds.length > 0) {
-    await supabase.from('plan_blocks').delete().in('id', replaceIds).eq('user_id', userId)
-  }
-
-  // One daily_plans row per date that gets a block.
-  const dates = Array.from(new Set(plan.blocks.map((b) => b.date)))
-  const planIds: Record<string, string> = {}
-  for (const date of dates) {
-    const { data } = await supabase
-      .from('daily_plans')
-      .upsert({ user_id: userId, plan_date: date, timezone: timeZone, origin: date === today ? 'daily' : 'week_draft', week_start: weekStart, status: 'accepted' }, { onConflict: 'user_id,plan_date' })
-      .select('id')
-      .single()
-    if (data?.id) planIds[date] = data.id
-  }
-
-  if (plan.blocks.length > 0) {
-    const { error } = await supabase.from('plan_blocks').insert(
-      plan.blocks.map((b, i) => ({
-        user_id: userId,
-        plan_id: planIds[b.date],
-        outcome_id: b.outcomeId,
-        project_id: b.projectId,
-        milestone_id: b.milestoneId,
-        commitment_id: b.commitmentId,
-        deliverable: b.title,
-        rationale: b.rationale,
-        starts_at: b.start.toISOString(),
-        ends_at: b.end.toISOString(),
-        position: i,
-        status: 'planned',
-        kind: b.kind,
-        source: 'planner',
-        locked: false,
-        expected_paths: b.expectedPaths,
-      }))
-    )
-    if (error) throw new Error(`Failed to write week plan: ${error.message}`)
-  }
 
   await supabase.from('session_events').insert({
     user_id: userId,
     event: 'week_planned',
     event_date: today,
-    metadata: { week_start: weekStart, blocks: plan.blocks.length, replaced: replaceIds.length, kept: kept.length, notes: plan.notes },
+    metadata: { week_start: weekStart, blocks: plan.written, replaced: plan.replaced, notes: plan.notes },
   })
 
   const notes = connection ? plan.notes : ['No calendar connected: the whole work window counted as free. Connect Google Calendar in Settings to plan around real events.', ...plan.notes]

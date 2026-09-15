@@ -8,6 +8,7 @@ import { todayIn } from '@/lib/calendar/day'
 import { runThreadTurn } from '@/lib/chat/thread'
 import { WEEK_SYSTEM_PROMPT, weekStateBlock, weekTools } from '@/lib/chat/week'
 import { loadWeek } from '@/lib/week/plan'
+import { ensureDefaultChains, loadDayTemplate } from '@/lib/chains'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -21,14 +22,15 @@ export async function POST(request: NextRequest) {
 
   const { supabase, userId } = caller
   try {
-    const week = await loadWeek({ supabase, userId, origin: url.origin, weekStart: body.start })
+    await ensureDefaultChains(supabase, userId)
+    const [week, template] = await Promise.all([loadWeek({ supabase, userId, origin: url.origin, weekStart: body.start }), loadDayTemplate(supabase, userId)])
     const today = week.today
     const result = await runThreadTurn({
       supabase,
       userId,
       key: { outcomeId: null, sessionKind: 'week' },
       systemPrompt: WEEK_SYSTEM_PROMPT,
-      stateBlock: weekStateBlock(week, today),
+      stateBlock: weekStateBlock(week, today, template),
       tools: weekTools({ supabase, userId, today, origin: url.origin, timeZone: week.timeZone }),
       userMessage: body.message.trim(),
       today,
