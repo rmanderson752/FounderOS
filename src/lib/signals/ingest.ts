@@ -85,10 +85,31 @@ export async function ingestSignals(supabase: Db, userId: string, incoming: Inco
   if (rows.length === 0) return { inserted: 0, duplicates: 0, resolved: [] }
 
   // Dedupe on external_id per user (a queue flush after a retry must not
-  // double-count a commit). ignoreDuplicates keeps the first row.
+  // double-count a commit). The unique index is partial (external_id IS NOT
+  // NULL), which ON CONFLICT cannot target through PostgREST, so check first
+  // and insert only what is new.
+  const externalIds = rows.map((r) => r.external_id).filter((id): id is string => !!id)
+  let known = new Set<string>()
+  if (externalIds.length > 0) {
+    const { data: existingRows } = await supabase
+      .from('signals')
+      .select('external_id')
+      .eq('user_id', userId)
+      .in('external_id', externalIds)
+    known = new Set(((existingRows ?? []) as { external_id: string }[]).map((r) => r.external_id))
+  }
+  const seen = new Set<string>()
+  const fresh = rows.filter((r) => {
+    if (!r.external_id) return true
+    if (known.has(r.external_id) || seen.has(r.external_id)) return false
+    seen.add(r.external_id)
+    return true
+  })
+  if (fresh.length === 0) return { inserted: 0, duplicates: rows.length, resolved: [] }
+
   const { data: inserted, error } = await supabase
     .from('signals')
-    .upsert(rows, { onConflict: 'user_id,external_id', ignoreDuplicates: true })
+    .insert(fresh)
     .select('id, project_id, source, occurred_at, paths, summary, duration_minutes')
   if (error) throw new Error(`Failed to store signals: ${error.message}`)
 

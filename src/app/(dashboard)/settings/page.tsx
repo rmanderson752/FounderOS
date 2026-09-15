@@ -35,6 +35,14 @@ function CalendarRedirectHandler() {
   const { addToast } = useToast()
 
   useEffect(() => {
+    const hubspot = searchParams.get('hubspot')
+    if (hubspot) {
+      if (hubspot === 'connected') addToast('HubSpot connected and synced', 'success')
+      else if (hubspot === 'unconfigured') addToast('Add HUBSPOT_CLIENT_ID and HUBSPOT_CLIENT_SECRET to .env.local first', 'error')
+      else addToast('HubSpot connection failed', 'error')
+      router.replace('/settings')
+      return
+    }
     const gcal = searchParams.get('gcal') ?? searchParams.get('calendar')
     if (gcal === 'connected') {
       addToast('Google Calendar connected!', 'success')

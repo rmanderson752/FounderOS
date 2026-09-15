@@ -11,7 +11,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
-import { Copy, Plug, Plus, Trash2 } from 'lucide-react'
+import { Copy, Plug, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -23,10 +23,18 @@ interface IntegrationRow {
   active: boolean
   events_received: number
   last_event_at: string | null
+  hub_domain?: string | null
+  last_sync_at?: string | null
+  last_report?: { accepted: number; signals: number; chores: number; rejected: { reason: string }[] } | null
+  connected?: boolean
+}
+
+interface IntegrationsResponse {
+  integrations: IntegrationRow[]
+  hubspot_configured: boolean
 }
 
 const PRESETS = [
-  { kind: 'hubspot', label: 'HubSpot' },
   { kind: 'attio', label: 'Attio' },
   { kind: 'pipedrive', label: 'Pipedrive' },
   { kind: 'notion', label: 'Notion' },
@@ -37,15 +45,31 @@ const PRESETS = [
 export function IntegrationsCard() {
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
-  const [kind, setKind] = useState('hubspot')
+  const [kind, setKind] = useState('attio')
   const [minted, setMinted] = useState<{ url: string; name: string } | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const { data } = useQuery({
+  const { data: payload } = useQuery({
     queryKey: ['integrations'],
-    queryFn: async (): Promise<IntegrationRow[]> => {
+    queryFn: async (): Promise<IntegrationsResponse> => {
       const res = await fetch('/api/integrations')
-      return res.ok ? ((await res.json()) as { integrations: IntegrationRow[] }).integrations : []
+      return res.ok ? ((await res.json()) as IntegrationsResponse) : { integrations: [], hubspot_configured: false }
+    },
+  })
+  const data = payload?.integrations
+  const hubspot = data?.find((r) => r.kind === 'hubspot' && r.connected)
+
+  const sync = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/integrations/hubspot/sync', { method: 'POST' })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error ?? 'Sync failed')
+      return body as { reports: Array<{ accepted?: number; tasks?: number; deals?: number; activities?: number; errors?: string[]; error?: string }> }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] })
+      queryClient.invalidateQueries({ queryKey: ['week'] })
+      queryClient.invalidateQueries({ queryKey: ['signals'] })
     },
   })
 
@@ -97,8 +121,43 @@ export function IntegrationsCard() {
         </div>
       </CardHeader>
       <div className="space-y-5">
+        {/* HubSpot, native */}
+        <div className="rounded-2xl border border-line p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold text-ink">HubSpot</p>
+              {hubspot ? (
+                <p className="text-xs text-ink-4 mt-0.5">
+                  Connected{hubspot.hub_domain ? ` to ${hubspot.hub_domain}` : ''}
+                  {hubspot.last_sync_at ? ` · synced ${formatDistanceToNow(new Date(hubspot.last_sync_at), { addSuffix: true })}` : ' · not synced yet'}
+                  {hubspot.last_report ? ` · last pull: ${hubspot.last_report.chores} dated item${hubspot.last_report.chores === 1 ? '' : 's'}, ${hubspot.last_report.signals} activit${hubspot.last_report.signals === 1 ? 'y' : 'ies'}` : ''}
+                </p>
+              ) : (
+                <p className="text-xs text-ink-4 mt-0.5">Open tasks and deals become chores on the calendar; calls, emails, meetings and notes become signals. Read-only.</p>
+              )}
+            </div>
+            {hubspot ? (
+              <Button variant="secondary" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
+                <RefreshCw className={cn('w-4 h-4 mr-2', sync.isPending && 'animate-spin')} /> Sync now
+              </Button>
+            ) : payload?.hubspot_configured ? (
+              <Button size="sm" onClick={() => (window.location.href = '/api/integrations/hubspot/connect')}>
+                Connect HubSpot
+              </Button>
+            ) : (
+              <span className="text-xs text-ink-4 max-w-[240px] text-right">Add HUBSPOT_CLIENT_ID and HUBSPOT_CLIENT_SECRET to .env.local (see .env.example) to enable.</span>
+            )}
+          </div>
+          {sync.data && (
+            <p className="text-xs text-ink-3 mt-2">
+              {sync.data.reports.map((r, i) => r.error ? `Failed: ${r.error}` : `Pulled ${r.tasks ?? 0} tasks, ${r.deals ?? 0} deals, ${r.activities ?? 0} activities${r.errors?.length ? ` (${r.errors.join('; ')})` : ''}`).join(' · ')}
+            </p>
+          )}
+          {sync.isError && <p className="text-xs text-rose-600 mt-2">{(sync.error as Error).message}</p>}
+        </div>
+
         <p className="text-sm text-ink-3 leading-relaxed">
-          Point your CRM&apos;s automations (or Zapier) at a URL. Logged calls and emails become signals so blocks resolve
+          Anything else: point your CRM&apos;s automations (or Zapier) at a URL. Logged calls and emails become signals so blocks resolve
           themselves; tasks and deals with dates become chores on the calendar. Each integration gets its own URL; the
           secret is in the URL and shown once.
         </p>
@@ -128,9 +187,9 @@ export function IntegrationsCard() {
           </div>
         )}
 
-        {data && data.length > 0 && (
+        {data && data.filter((r) => r.kind !== 'hubspot').length > 0 && (
           <ul className="divide-y divide-line border border-line rounded-2xl overflow-hidden">
-            {data.map((row) => (
+            {data.filter((r) => r.kind !== 'hubspot').map((row) => (
               <li key={row.id} className="flex items-center gap-3 px-4 py-3 text-sm">
                 <span className={cn('w-2 h-2 rounded-full', row.active ? 'bg-emerald-500' : 'bg-ink-5')} />
                 <div className="min-w-0 flex-1">

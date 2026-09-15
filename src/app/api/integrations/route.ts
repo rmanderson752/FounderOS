@@ -13,10 +13,15 @@ export async function GET(request: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const { data } = await caller.supabase
     .from('integrations')
-    .select('id, kind, name, project_id, active, events_received, last_event_at, created_at')
+    .select('id, kind, name, project_id, active, events_received, last_event_at, created_at, config')
     .eq('user_id', caller.userId)
     .order('created_at')
-  return NextResponse.json({ integrations: data ?? [] })
+  // Never return token material; summarise the connector's state instead.
+  const integrations = ((data ?? []) as Array<Record<string, unknown>>).map(({ config, ...row }) => {
+    const c = (config ?? {}) as { hub_domain?: string | null; last_sync_at?: string | null; last_report?: unknown; access_token_enc?: string }
+    return { ...row, hub_domain: c.hub_domain ?? null, last_sync_at: c.last_sync_at ?? null, last_report: c.last_report ?? null, connected: !!c.access_token_enc }
+  })
+  return NextResponse.json({ integrations, hubspot_configured: !!process.env.HUBSPOT_CLIENT_ID && !!process.env.HUBSPOT_CLIENT_SECRET })
 }
 
 export async function POST(request: NextRequest) {

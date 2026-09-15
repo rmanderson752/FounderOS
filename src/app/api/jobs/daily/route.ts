@@ -27,6 +27,7 @@ import { pickRocks, rechainDates } from '@/lib/planner/rechain'
 import type { PlannerMilestone, PlannerOutcome } from '@/lib/planner/types'
 import { emailEnabled, sendCardEmail } from '@/lib/jobs/email'
 import { replanWeek } from '@/lib/week/plan'
+import { loadHubspotIntegrations, syncHubspot } from '@/lib/integrations/hubspot'
 import type { Db } from '@/lib/supabase/types'
 
 export const dynamic = 'force-dynamic'
@@ -179,6 +180,20 @@ export async function GET(request: NextRequest) {
     const entry: Record<string, unknown> = { user: u.id, today }
 
     try {
+      // Pull the CRM first so today's plan and card see fresh tasks and activity.
+      const hubspot = await loadHubspotIntegrations(supabase, u.id)
+      if (hubspot.length > 0) {
+        entry.hubspot = []
+        for (const integration of hubspot) {
+          try {
+            const r = await syncHubspot(supabase, integration, timeZone)
+            ;(entry.hubspot as unknown[]).push({ accepted: r.accepted, tasks: r.tasks, deals: r.deals, activities: r.activities, errors: r.errors })
+          } catch (e) {
+            ;(entry.hubspot as unknown[]).push({ error: e instanceof Error ? e.message : 'sync failed' })
+          }
+        }
+      }
+
       entry.closed = await closeOutStaleBlocks(supabase, u.id, now)
 
       if (weekday === 0) {
