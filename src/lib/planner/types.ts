@@ -46,7 +46,7 @@ export interface PlannerMilestone {
 export interface PlannerSignal {
   id: string
   projectId: string | null
-  source: 'git' | 'session' | 'fs' | 'manual' | 'deploy'
+  source: 'git' | 'session' | 'fs' | 'manual' | 'deploy' | 'crm'
   occurredAt: Date
   paths: string[]
   summary: string

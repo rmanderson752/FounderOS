@@ -10,7 +10,7 @@ import { ingestSignals, type IncomingSignal } from '@/lib/signals/ingest'
 
 export const dynamic = 'force-dynamic'
 
-const SOURCES = new Set(['git', 'session', 'fs', 'manual', 'deploy'])
+const SOURCES = new Set(['git', 'session', 'fs', 'manual', 'deploy', 'crm'])
 
 export async function POST(request: NextRequest) {
   const caller = await resolveCaller(request)

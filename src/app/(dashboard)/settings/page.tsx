@@ -16,6 +16,7 @@ import { useToast } from '@/components/ui/Toast'
 import { CalendarConnection } from '@/components/settings/CalendarConnection'
 import { HookTokenCard } from '@/components/settings/HookTokenCard'
 import { WorkWindowCard } from '@/components/settings/WorkWindowCard'
+import { IntegrationsCard } from '@/components/settings/IntegrationsCard'
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sun' },
@@ -267,6 +268,9 @@ export default function SettingsPage() {
 
       {/* CLI + hooks token */}
       <HookTokenCard />
+
+      {/* CRM / webhook integrations */}
+      <IntegrationsCard />
 
       {/* Current Goal */}
       {goal && (

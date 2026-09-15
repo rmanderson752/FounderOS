@@ -4,7 +4,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 // API routes that authenticate themselves: a CLI/hook bearer token or the
 // cron secret. They get no session redirect and no onboarding gate; each
 // route resolves its caller and returns 401 on its own.
-const SELF_AUTH_PREFIXES = ['/api/card', '/api/signals', '/api/blocks', '/api/jobs', '/api/goals', '/api/calendar/day', '/api/calendar/status', '/api/projects', '/api/week', '/api/commitments', '/api/milestones']
+const SELF_AUTH_PREFIXES = ['/api/card', '/api/signals', '/api/blocks', '/api/jobs', '/api/goals', '/api/calendar/day', '/api/calendar/status', '/api/projects', '/api/week', '/api/commitments', '/api/milestones', '/api/integrations']
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname

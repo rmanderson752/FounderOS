@@ -14,7 +14,7 @@ describe.skipIf(!live)('WeekCalendar (live render)', () => {
     const res = await fetch('http://localhost:3000/api/week', { headers: { authorization: `Bearer ${process.env.FOS_TOKEN}` } })
     expect(res.ok).toBe(true)
     const week = reviveWeek(await res.json())
-    const html = renderToString(React.createElement(WeekCalendar, { week, onMove: () => {} }))
+    const html = renderToString(React.createElement(WeekCalendar, { week, onMove: () => {}, onResize: () => {} }))
     expect(html).toContain('Goal work')
     for (const b of week.blocks) expect(html).toContain(b.title.slice(0, 20).replace(/&/g, '&amp;').replace(/'/g, '&#x27;'))
     console.log(`rendered ${week.blocks.length} blocks, ${html.length} chars`)

@@ -3,20 +3,23 @@
 //
 // The card is what to do now. The calendar underneath is the week as
 // planned: events, goal blocks, recurring commitments, habits, chores, due
-// dates. Drag a block to move it, or tell the planner in one line.
+// dates. Drag to move, drag the bottom edge to resize, click to edit, click
+// empty space or the Add button to add, or tell the planner in one line.
 
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { CalendarClock, CalendarX2, ChevronLeft, ChevronRight, Flag, Loader2, PauseCircle, Send, Sparkles, Trash2, Wand2, X } from 'lucide-react'
+import { CalendarClock, CalendarX2, ChevronLeft, ChevronRight, Flag, Loader2, PauseCircle, Plus, Send, Sparkles, Wand2 } from 'lucide-react'
 import { PageTransition, Skeleton } from '@/components/ui'
 import { StartCard } from '@/components/card/StartCard'
 import { WeekCalendar } from '@/components/week/WeekCalendar'
+import { BlockEditor, type BlockPatch } from '@/components/week/BlockEditor'
+import { AddBlockDialog } from '@/components/week/AddBlockDialog'
 import { useCard } from '@/hooks/useCard'
 import { useUser } from '@/hooks/useUser'
-import { useDeleteBlock, useMoveBlock, usePlanWeek, useWeek, useWeekChat } from '@/hooks/useWeek'
+import { useCreateBlock, useDeleteBlock, usePatchBlock, usePlanWeek, useWeek, useWeekChat } from '@/hooks/useWeek'
 import { cn } from '@/lib/utils'
 import type { WeekBlock } from '@/lib/week/plan'
 
@@ -34,16 +37,19 @@ export default function MorningPage() {
   const [weekStart, setWeekStart] = useState<string | null>(null)
   const { data: week, isLoading: weekLoading, isError: weekError, error: weekErr } = useWeek(weekStart)
   const plan = usePlanWeek(weekStart)
-  const move = useMoveBlock(weekStart)
+  const patch = usePatchBlock(weekStart)
+  const create = useCreateBlock(weekStart)
   const remove = useDeleteBlock(weekStart)
   const chat = useWeekChat(weekStart)
 
   const [command, setCommand] = useState('')
   const [reply, setReply] = useState<string | null>(null)
-  const [selected, setSelected] = useState<WeekBlock | null>(null)
-  const [moveError, setMoveError] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [adding, setAdding] = useState<{ open: boolean; at: Date | null }>({ open: false, at: null })
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const firstName = user?.name?.split(' ')[0]
+  const selected = week?.blocks.find((b) => b.id === selectedId) ?? null
 
   const send = async () => {
     const text = command.trim()
@@ -58,14 +64,22 @@ export default function MorningPage() {
     }
   }
 
-  const onMove = async (block: WeekBlock, startsAt: Date, endsAt: Date) => {
-    setMoveError(null)
-    try {
-      await move.mutateAsync({ id: block.id, starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString() })
-    } catch (e) {
-      setMoveError(e instanceof Error ? e.message : 'Could not move that block.')
-    }
-  }
+  const applyPatch = useCallback(
+    async (block: WeekBlock, body: BlockPatch) => {
+      setActionError(null)
+      try {
+        await patch.mutateAsync({ id: block.id, ...body })
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : 'Could not update that block.')
+      }
+    },
+    [patch]
+  )
+
+  const onMove = useCallback((block: WeekBlock, startsAt: Date, endsAt: Date) => applyPatch(block, { starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString() }), [applyPatch])
+  const onResize = useCallback((block: WeekBlock, endsAt: Date) => applyPatch(block, { ends_at: endsAt.toISOString() }), [applyPatch])
+  const onSelect = useCallback((block: WeekBlock) => setSelectedId((cur) => (cur === block.id ? null : block.id)), [])
+  const onAddAt = useCallback((at: Date) => setAdding({ open: true, at }), [])
 
   return (
     <PageTransition>
@@ -94,30 +108,26 @@ export default function MorningPage() {
         )}
 
         {/* ---- the week ---- */}
-        <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => setWeekStart(shiftWeek(week?.weekStart ?? new Date().toISOString().slice(0, 10), -1))} className="w-8 h-8 rounded-full hover:bg-surface-3 flex items-center justify-center text-ink-3" aria-label="Previous week">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <h2 className="text-[17px] font-semibold text-ink px-1">
-              {week ? `Week of ${format(new Date(`${week.weekStart}T12:00:00Z`), 'MMM d')}` : 'This week'}
-            </h2>
+            <h2 className="text-[17px] font-semibold text-ink px-1">{week ? `Week of ${format(new Date(`${week.weekStart}T12:00:00Z`), 'MMM d')}` : 'This week'}</h2>
             <button type="button" onClick={() => setWeekStart(shiftWeek(week?.weekStart ?? new Date().toISOString().slice(0, 10), 1))} className="w-8 h-8 rounded-full hover:bg-surface-3 flex items-center justify-center text-ink-3" aria-label="Next week">
               <ChevronRight className="w-4 h-4" />
             </button>
-            {weekStart && (
-              <button type="button" onClick={() => setWeekStart(null)} className="text-xs font-semibold text-brand-600 ml-1">today</button>
-            )}
+            {weekStart && <button type="button" onClick={() => setWeekStart(null)} className="text-xs font-semibold text-brand-600 ml-1">today</button>}
           </div>
-          <button
-            type="button"
-            onClick={() => plan.mutate()}
-            disabled={plan.isPending || !week}
-            className="inline-flex items-center gap-2 rounded-full bg-brand-500 text-white px-4 py-2 text-sm font-semibold hover:bg-brand-600 disabled:opacity-50 transition-colors"
-          >
-            {plan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" strokeWidth={2} />}
-            {week?.blocks.length ? 'Re-plan week' : 'Plan my week'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setAdding({ open: true, at: null })} disabled={!week} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-sm font-semibold text-ink-2 hover:border-line-strong disabled:opacity-50">
+              <Plus className="w-4 h-4" strokeWidth={2.5} /> Add
+            </button>
+            <button type="button" onClick={() => plan.mutate()} disabled={plan.isPending || !week} className="inline-flex items-center gap-2 rounded-full bg-brand-500 text-white px-4 py-2 text-sm font-semibold hover:bg-brand-600 disabled:opacity-50 transition-colors">
+              {plan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" strokeWidth={2} />}
+              {week?.blocks.length ? 'Re-plan week' : 'Plan my week'}
+            </button>
+          </div>
         </div>
 
         {weekLoading && <Skeleton className="h-[520px] w-full rounded-2xl" />}
@@ -130,35 +140,29 @@ export default function MorningPage() {
         )}
         {week?.calendar && (
           <div className="bg-white border border-line rounded-3xl shadow-sm p-4">
-            <WeekCalendar week={week} onMove={onMove} onSelect={setSelected} selectedId={selected?.id ?? null} />
-            {moveError && <p className="text-xs text-rose-600 mt-2">{moveError}</p>}
+            <WeekCalendar week={week} onMove={onMove} onResize={onResize} onSelect={onSelect} onAddAt={onAddAt} selectedId={selectedId} />
+            {actionError && <p className="text-xs text-rose-600 mt-2">{actionError}</p>}
             {week.notes.length > 0 && (
               <ul className="mt-3 text-xs text-ink-4 space-y-0.5">
-                {week.notes.slice(0, 5).map((n, i) => (
-                  <li key={i}>· {n}</li>
-                ))}
+                {week.notes.slice(0, 5).map((n, i) => <li key={i}>· {n}</li>)}
               </ul>
             )}
           </div>
         )}
 
-        {/* selected block */}
-        {selected && (
-          <div className="mt-3 bg-white border border-line rounded-2xl px-4 py-3 flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-ink">{selected.title}</p>
-              <p className="text-xs text-ink-4">
-                {selected.kind} · {selected.status}{selected.locked ? ' · locked' : ''}{selected.rationale ? ` · ${selected.rationale}` : ''}
-              </p>
-            </div>
-            {selected.status === 'planned' && (
-              <button type="button" onClick={() => { remove.mutate(selected.id); setSelected(null) }} className="text-ink-4 hover:text-rose-600" aria-label="Remove block">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-            <button type="button" onClick={() => setSelected(null)} className="text-ink-4 hover:text-ink" aria-label="Close">
-              <X className="w-4 h-4" />
-            </button>
+        {selected && week && (
+          <div className="mt-3">
+            <BlockEditor
+              block={selected}
+              timeZone={week.timeZone}
+              busy={patch.isPending || remove.isPending}
+              onSave={(body) => applyPatch(selected, body)}
+              onDelete={async () => {
+                setSelectedId(null)
+                await remove.mutateAsync(selected.id)
+              }}
+              onClose={() => setSelectedId(null)}
+            />
           </div>
         )}
 
@@ -184,6 +188,16 @@ export default function MorningPage() {
         <p className="text-xs text-ink-4 mt-4">
           Goals and their ladders live on <Link href="/goals" className="text-brand-600 font-semibold">Goals</Link>. The week is re-planned every Sunday from your goals and commitments; locked and finished blocks stay put.
         </p>
+
+        <AddBlockDialog
+          open={adding.open}
+          timeZone={week?.timeZone ?? 'America/New_York'}
+          initialStart={adding.at}
+          onCreate={async (input) => {
+            await create.mutateAsync(input)
+          }}
+          onClose={() => setAdding({ open: false, at: null })}
+        />
       </div>
     </PageTransition>
   )

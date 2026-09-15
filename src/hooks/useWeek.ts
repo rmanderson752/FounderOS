@@ -58,20 +58,75 @@ export function usePlanWeek(start?: string | null) {
   })
 }
 
-export function useMoveBlock(start?: string | null) {
+/**
+ * Patch a block (move, resize, rename, kind, status, lock). Optimistic: the
+ * week in the cache is updated immediately so a drag lands where it was
+ * dropped; on failure the cache is refetched and the error surfaces.
+ */
+export function usePatchBlock(start?: string | null) {
   const queryClient = useQueryClient()
+  const key = ['week', start ?? 'current']
   return useMutation({
-    mutationFn: async (input: { id: string; starts_at: string; ends_at: string }) => {
-      const response = await fetch(`/api/blocks/${input.id}`, {
+    mutationFn: async (input: { id: string } & Record<string, unknown>) => {
+      const { id, ...patch } = input
+      const response = await fetch(`/api/blocks/${id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ starts_at: input.starts_at, ends_at: input.ends_at }),
+        body: JSON.stringify(patch),
       })
       if (!response.ok) {
         const body = await response.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Failed to move block')
+        throw new Error(body.error ?? 'Failed to update block')
       }
       return response.json()
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<WeekData>(key)
+      if (previous) {
+        queryClient.setQueryData<WeekData>(key, {
+          ...previous,
+          blocks: previous.blocks.map((b) => {
+            if (b.id !== input.id) return b
+            const next = { ...b } as WeekData['blocks'][number] & Record<string, unknown>
+            if (typeof input.deliverable === 'string') next.title = input.deliverable
+            if (typeof input.kind === 'string') next.kind = input.kind as typeof b.kind
+            if (typeof input.starts_at === 'string') {
+              next.starts_at = input.starts_at
+              next.date = new Date(input.starts_at).toLocaleDateString('en-CA', { timeZone: previous.timeZone })
+            }
+            if (typeof input.ends_at === 'string') next.ends_at = input.ends_at
+            if (typeof input.status === 'string') next.status = input.status
+            if (typeof input.locked === 'boolean') next.locked = input.locked
+            else if (typeof input.starts_at === 'string' || typeof input.ends_at === 'string') next.locked = true
+            return next
+          }),
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: key })
+      queryClient.invalidateQueries({ queryKey: ['card'] })
+    },
+  })
+}
+
+export function useCreateBlock(start?: string | null) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { title: string; kind: string; starts_at: string; ends_at: string }) => {
+      const response = await fetch('/api/blocks', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error ?? 'Failed to add block')
+      return body as { id: string }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['week', start ?? 'current'] })
@@ -82,13 +137,23 @@ export function useMoveBlock(start?: string | null) {
 
 export function useDeleteBlock(start?: string | null) {
   const queryClient = useQueryClient()
+  const key = ['week', start ?? 'current']
   return useMutation({
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/blocks/${id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Failed to remove block')
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['week', start ?? 'current'] })
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<WeekData>(key)
+      if (previous) queryClient.setQueryData<WeekData>(key, { ...previous, blocks: previous.blocks.filter((b) => b.id !== id) })
+      return { previous }
+    },
+    onError: (_e, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: key })
       queryClient.invalidateQueries({ queryKey: ['card'] })
     },
   })

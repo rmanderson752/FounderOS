@@ -12,7 +12,7 @@ import { todayIn } from '@/lib/calendar/day'
 import { projectForPath } from './attribute'
 
 export interface IncomingSignal {
-  source: 'git' | 'session' | 'fs' | 'manual' | 'deploy'
+  source: 'git' | 'session' | 'fs' | 'manual' | 'deploy' | 'crm'
   kind: string
   summary?: string
   paths?: string[]
@@ -23,6 +23,7 @@ export interface IncomingSignal {
   cwd?: string | null
   project?: string | null
   metadata?: Record<string, unknown>
+  integration_id?: string | null
 }
 
 export interface IngestResult {
@@ -76,6 +77,7 @@ export async function ingestSignals(supabase: Db, userId: string, incoming: Inco
         occurred_at: new Date(s.occurred_at).toISOString(),
         duration_minutes: s.duration_minutes ?? null,
         external_id: s.external_id ?? null,
+        integration_id: s.integration_id ?? null,
         metadata: { ...(s.metadata ?? {}), cwd: s.cwd ?? null },
       }
     })

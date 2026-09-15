@@ -21,7 +21,11 @@ interface Body {
   ends_at?: string
   locked?: boolean
   deliverable?: string
+  kind?: string
+  rationale?: string | null
 }
+
+const KINDS = new Set(['goal', 'flexible', 'fixed', 'habit', 'chore'])
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const caller = await resolveCaller(request)
@@ -88,6 +92,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   if (body.deliverable?.trim()) update.deliverable = body.deliverable.trim()
+  if (body.kind) {
+    if (!KINDS.has(body.kind)) return NextResponse.json({ error: 'invalid kind' }, { status: 400 })
+    update.kind = body.kind
+  }
+  if (body.rationale !== undefined) update.rationale = body.rationale
 
   if (Object.keys(update).length === 0) return NextResponse.json({ error: 'nothing to change' }, { status: 400 })
 

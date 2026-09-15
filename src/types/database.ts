@@ -842,7 +842,7 @@ export interface Database {
           id: string
           user_id: string
           project_id: string | null
-          source: 'git' | 'session' | 'fs' | 'manual' | 'deploy'
+          source: 'git' | 'session' | 'fs' | 'manual' | 'deploy' | 'crm'
           kind: string
           summary: string
           paths: string[]
@@ -856,7 +856,7 @@ export interface Database {
           id?: string
           user_id: string
           project_id?: string | null
-          source: 'git' | 'session' | 'fs' | 'manual' | 'deploy'
+          source: 'git' | 'session' | 'fs' | 'manual' | 'deploy' | 'crm'
           kind: string
           summary?: string
           paths?: string[]
@@ -889,6 +889,8 @@ export interface Database {
           notes: string | null
           created_at: string
           updated_at: string
+          external_id: string | null
+          integration_id: string | null
         }
         Insert: {
           id?: string
@@ -897,6 +899,8 @@ export interface Database {
           outcome_id?: string | null
           title: string
           kind: CommitmentKind
+          external_id?: string | null
+          integration_id?: string | null
           days_of_week?: number[]
           duration_minutes?: number
           fixed_start?: string | null
@@ -917,6 +921,41 @@ export interface Database {
           due_date?: string | null
           active?: boolean
           notes?: string | null
+        }
+      }
+      integrations: {
+        Row: {
+          id: string
+          user_id: string
+          kind: 'webhook' | 'hubspot' | 'attio' | 'pipedrive' | 'notion' | 'zapier'
+          name: string
+          /** SHA-256 of the URL token; plaintext shown once. */
+          token_hash: string
+          project_id: string | null
+          config: Json
+          active: boolean
+          events_received: number
+          last_event_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          kind?: 'webhook' | 'hubspot' | 'attio' | 'pipedrive' | 'notion' | 'zapier'
+          name: string
+          token_hash: string
+          project_id?: string | null
+          config?: Json
+          active?: boolean
+        }
+        Update: {
+          name?: string
+          project_id?: string | null
+          config?: Json
+          active?: boolean
+          events_received?: number
+          last_event_at?: string | null
         }
       }
       resolution_corrections: {
@@ -977,3 +1016,4 @@ export type Milestone = Database['public']['Tables']['milestones']['Row']
 export type Signal = Database['public']['Tables']['signals']['Row']
 export type ResolutionCorrection = Database['public']['Tables']['resolution_corrections']['Row']
 export type Commitment = Database['public']['Tables']['commitments']['Row']
+export type Integration = Database['public']['Tables']['integrations']['Row']
